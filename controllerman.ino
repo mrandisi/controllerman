@@ -48,7 +48,9 @@ void setup() {
     debouncer[1].interval(bounceInterval);
   }
   
-  if(debug) Serial.println("System ready!");
+  if(debug) {
+    Serial.println("System ready!");
+  }
   
   ledTest();
 } // end Setup
