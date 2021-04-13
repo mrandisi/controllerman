@@ -34,19 +34,19 @@ void View::singlePress(uint8_t button) {
       butt1_singlePress();
       break;
     case 2:
-      // statements
+      butt2_singlePress();
       break;
     case 3:
-      // statements
+      butt3_singlePress();
       break;
     case 4:
-      // statements
+      butt4_singlePress();
       break;
     case 5:
-      // statements
+      butt5_singlePress();
       break;
     case 6:
-      // statements
+      butt6_singlePress();
       break;
   
     default:
@@ -62,7 +62,7 @@ bool View::singlePress_hold(uint8_t button) {
   
   switch (button) {
     case 1:
-      butt1_singlePress();
+      // statements
       break;
     case 2:
       // statements
@@ -98,16 +98,16 @@ void View::doublePress(uint8_t button1, uint8_t button2) {
   uint8_t c = button1+button2;
   switch (c) {
     case 3:
-      // statements
+      doublePress_1_2();
       break;
     case 5:
-      // statements
+      doublePress_2_3();
       break;
     case 9:
-      // statements
+      doublePress_4_5();
       break;
     case 11:
-      // statements
+      doublePress_5_6();
       break;
   
     default:
