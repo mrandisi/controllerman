@@ -1,4 +1,20 @@
+/**
+ * ControllerMan
+ * www.controllerman.com
+ * 
+ * Program tier is devided into 3 sections
+ * ACTION > BEHAVIOR > EXECUTION
+ * 
+ * ACTION takes the buttons input and generate the proper calls.
+ * BEHAVIOR defines the relation between the action and the execution.
+ * EXECUTION contains all the commands device-specific to realize the control.
+ * 
+ */
 #include <Bounce2.h>
+#include "View.h"
+#include "View_Green.h"
+#include "View_Orange.h"
+#include "View_Cyan.h"
 
 const bool DEBUG = true;
 
@@ -25,11 +41,9 @@ const uint8_t DOUBLE_BUTT_COMBINATION[6][3] = {
 // Instantiate the Bounce objects
 Bounce * DEBOUNCER = new Bounce[ITEMS];   // 6 debouncing objects
 
-struct Color {
-  uint8_t red;
-  uint8_t green;
-  uint8_t blue;
-};
+// Instantiate the views
+View* VIEW;
+uint8_t VIEW_INDEX=0;
 
 void setup() {
 
@@ -55,15 +69,12 @@ void setup() {
     DEBOUNCER[i].interval(bounceInterval);
   }
   
-  if(DEBUG) {
-    Serial.println("System ready!");
-  }
+  // Init the View
+  VIEW = new View_Green();
   
   ledTest();
-
-  Color greenColor = {0,255,0};
-  setRgbColor(greenColor);
   
+  setRgbColor(VIEW->getRed(),VIEW->getGreen(),VIEW->getBlue());
 } // end Setup
 
 void loop() {
@@ -72,21 +83,22 @@ void loop() {
     DEBOUNCER[i].update();
     if(DEBOUNCER[i].read()==LOW) { // button is pressed
       
-      busyWarning(true);  // Warns the user that system is busy putting the rgb to red
+      //busyWarning(true);  // Warns the user that system is busy putting the rgb to red
 
       // Stops checking all the hardware focusing only on one control
-      manageButton(i);
+      manageAction(i);
       
-      busyWarning(false);
+      //busyWarning(false);
     }
     
   } // end for all buttons cycle
+  
 } // end loop()
 
 /**
  * Manage the user action
  */
-void manageButton(uint8_t i) {
+void manageAction(uint8_t i) {
   unsigned long press_time = millis();
   
   while(DEBOUNCER[i].read()==LOW) { // while button is released
@@ -110,11 +122,12 @@ void manageButton(uint8_t i) {
             // Double long press
             if((millis() - double_press_time) > 1000) {
               // Run double button long press action
-              bool break_flag = doublePress_hold(i+1,nearButton);
+              bool break_flag = doublePress_hold(i+1, nearButton);
 
               if(break_flag) {  // wait for buttons release
                 while(DEBOUNCER[i].read()==LOW || DEBOUNCER[nearButton-1].read()==LOW) {
                   DEBOUNCER[i].update();
+                  DEBOUNCER[nearButton-1].update();
                 }
               }
             }
@@ -152,45 +165,78 @@ void manageButton(uint8_t i) {
     //  RUN SIMPLE ACTION
     singlePress(i+1);
   }
-
   
-}
+} // end manage action
 
 void singlePress(uint8_t button) {
-  if(DEBUG) {
-    Serial.print("Single press: ");
-    Serial.println(button, DEC);
-  }
+  VIEW->singlePress(button);
 }
 bool singlePress_hold(uint8_t button) {
-  bool break_flag = true;
-  if(DEBUG) {
-    Serial.print("Long press: ");
-    Serial.println(button, DEC);
-  }
+  bool break_flag = VIEW->singlePress_hold(button);
   return break_flag;
 }
 void doublePress(uint8_t button1, uint8_t button2) {
-  if(DEBUG) {
-    Serial.print("Double press: ");
-    Serial.print(button1, DEC);
-    Serial.print("+");
-    Serial.println(button2, DEC);
+  // sort the button numbers for convenience
+  if(button1 > button2) { 
+    uint8_t temp = button1;
+    button1 = button2;
+    button2 = temp;
+  }
+  
+  if(button1==3 && button2==6) {  // combination reserved to scroll the view forward
+    scroll_prev_view();
+  } else if(button1==1 && button2==4) {  // combination reserved to scroll the view forward
+    scroll_next_view();
+  } else if(button1==2 && button2==5) {
+    reset_view();
+  } else {
+    VIEW->doublePress(button1, button2);
   }
 }
 bool doublePress_hold(uint8_t button1, uint8_t button2) {
-  bool break_flag = true;
-  if(DEBUG) {
-    Serial.print("Long double press: ");
-    Serial.print(button1, DEC);
-    Serial.print("+");
-    Serial.println(button2, DEC);
-  }
+  bool break_flag = VIEW->doublePress_hold(button1, button2);
   return break_flag;
 }
 
 
 
+void scroll_prev_view() {
+  if(VIEW_INDEX==0) { // Green view
+    VIEW_INDEX=1;
+    VIEW=new View_Orange();
+    setRgbColor(VIEW->getRed(),VIEW->getGreen(),VIEW->getBlue());
+  } else if(VIEW_INDEX==1) {  // Orange view
+    VIEW_INDEX=2;
+    VIEW=new View_Cyan();
+    setRgbColor(VIEW->getRed(),VIEW->getGreen(),VIEW->getBlue());
+  } else if(VIEW_INDEX==2) {  // Cyan view
+    VIEW_INDEX=0;
+    VIEW=new View_Green();
+    setRgbColor(VIEW->getRed(),VIEW->getGreen(),VIEW->getBlue());
+  }
+}
+void scroll_next_view() {
+  if(VIEW_INDEX==2) { // Cyan view
+    VIEW_INDEX=1;
+    VIEW=new View_Orange();
+    setRgbColor(VIEW->getRed(),VIEW->getGreen(),VIEW->getBlue());
+  } else if(VIEW_INDEX==1) {  // Orange view
+    VIEW_INDEX=0;
+    VIEW=new View_Green();
+    setRgbColor(VIEW->getRed(),VIEW->getGreen(),VIEW->getBlue());
+  } else if(VIEW_INDEX==0) {  // Green view
+    VIEW_INDEX=2;
+    VIEW=new View_Cyan();
+    setRgbColor(VIEW->getRed(),VIEW->getGreen(),VIEW->getBlue());
+  }
+}
+void reset_view() {
+  if(VIEW_INDEX != 0) {
+    VIEW_INDEX=0;
+    VIEW=new View_Green();
+    setRgbColor(VIEW->getRed(),VIEW->getGreen(),VIEW->getBlue());
+  }
+}
 
 
 /**
@@ -200,22 +246,27 @@ bool doublePress_hold(uint8_t button1, uint8_t button2) {
 /** 
  *  Enable or disable the busy signal (red rgb led)
  */
-Color greenColor = {0,255,0};
-Color redColor = {255, 0, 0};
+uint8_t greenColor[3] = {0,255,0};
+uint8_t redColor[3] = {255,0,0};
 void busyWarning(bool enabled) {
   if(enabled) {
-    setRgbColor(redColor);
+    setRgbColor(redColor[0],redColor[1],redColor[2]);
   } else {
-    setRgbColor(greenColor);
+    setRgbColor(greenColor[0],greenColor[1],greenColor[2]);
   }
 }
 /**
  * Shortcut to control the rgb color
  */
-void setRgbColor(Color c) {
-  analogWrite(PIN_RGB_RED, c.red);
-  analogWrite(PIN_RGB_GREEN, c.green);
-  analogWrite(PIN_RGB_BLUE, c.blue);
+void setRgbColor(uint8_t red, uint8_t green, uint8_t blue) {
+  analogWrite(PIN_RGB_RED, red);
+  analogWrite(PIN_RGB_GREEN, green);
+  analogWrite(PIN_RGB_BLUE, blue);
+}
+void setRgbColor(uint8_t *c) {
+  analogWrite(PIN_RGB_RED, c[0]);
+  analogWrite(PIN_RGB_GREEN, c[1]);
+  analogWrite(PIN_RGB_BLUE, c[2]);
 }
 /**
  * ledTest
