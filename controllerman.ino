@@ -3,11 +3,11 @@
  * www.controllerman.com
  * 
  * Program tier is devided into 3 sections
- * ACTION > BEHAVIOR > EXECUTION
+ * ACTION > BEHAVIOR > SUBMISSION (device mapping)
  * 
  * ACTION takes the buttons input and generate the proper calls.
  * BEHAVIOR defines the relation between the action and the execution.
- * EXECUTION contains all the commands device-specific to realize the control.
+ * SUBMISSION contains all the commands device-specific to realize the control.
  * 
  */
 #include <Bounce2.h>
@@ -15,6 +15,8 @@
 #include "View_Green.h"
 #include "View_Orange.h"
 #include "View_Cyan.h"
+
+#include "LibMIDI/MIDI.h"
 
 const bool DEBUG = true;
 
@@ -26,6 +28,7 @@ const uint8_t PIN_STATE_LED [ITEMS] = {2, 3, 4, 5, 6, 7};  // from 1st to 6th
 const uint8_t PIN_RGB_RED = 8;
 const uint8_t PIN_RGB_GREEN = 9;
 const uint8_t PIN_RGB_BLUE = 10;
+uint8_t rgbState[3] = {0,255,0};
 
 // Define possible button combinations
 // First {2,4} means that button 1 can be combined as 1+2 and 1+4
@@ -46,7 +49,6 @@ View* VIEW;
 uint8_t VIEW_INDEX=0;
 
 void setup() {
-
   // Initialize the button pins
   for (int i = 0; i < ITEMS; i++) {
     pinMode(PIN_BUTTON[i] ,INPUT_PULLUP);
@@ -74,7 +76,9 @@ void setup() {
   
   ledTest();
   
-  setRgbColor(VIEW->getRed(),VIEW->getGreen(),VIEW->getBlue());
+  VIEW->modifyColor(rgbState);
+  setRgbColor(rgbState);
+  
 } // end Setup
 
 void loop() {
@@ -83,16 +87,15 @@ void loop() {
     DEBOUNCER[i].update();
     if(DEBOUNCER[i].read()==LOW) { // button is pressed
       
-      //busyWarning(true);  // Warns the user that system is busy putting the rgb to red
+      busyWarning(true);  // Warns the user that system is busy putting the rgb to red
 
       // Stops checking all the hardware focusing only on one control
       manageAction(i);
       
-      //busyWarning(false);
+      busyWarning(false);
     }
     
   } // end for all buttons cycle
-  
 } // end loop()
 
 /**
@@ -194,6 +197,12 @@ void doublePress(uint8_t button1, uint8_t button2) {
   }
 }
 bool doublePress_hold(uint8_t button1, uint8_t button2) {
+  // sort the button numbers for convenience
+  if(button1 > button2) { 
+    uint8_t temp = button1;
+    button1 = button2;
+    button2 = temp;
+  }
   bool break_flag = VIEW->doublePress_hold(button1, button2);
   return break_flag;
 }
@@ -204,38 +213,48 @@ void scroll_prev_view() {
   if(VIEW_INDEX==0) { // Green view
     VIEW_INDEX=1;
     VIEW=new View_Orange();
-    setRgbColor(VIEW->getRed(),VIEW->getGreen(),VIEW->getBlue());
+    VIEW->modifyColor(rgbState);
+    setRgbColor(rgbState);
   } else if(VIEW_INDEX==1) {  // Orange view
     VIEW_INDEX=2;
     VIEW=new View_Cyan();
-    setRgbColor(VIEW->getRed(),VIEW->getGreen(),VIEW->getBlue());
+    VIEW->modifyColor(rgbState);
+  setRgbColor(rgbState);
   } else if(VIEW_INDEX==2) {  // Cyan view
     VIEW_INDEX=0;
     VIEW=new View_Green();
-    setRgbColor(VIEW->getRed(),VIEW->getGreen(),VIEW->getBlue());
+    VIEW->modifyColor(rgbState);
+    setRgbColor(rgbState);
   }
+  ledSwipeRight();
 }
 void scroll_next_view() {
   if(VIEW_INDEX==2) { // Cyan view
     VIEW_INDEX=1;
     VIEW=new View_Orange();
-    setRgbColor(VIEW->getRed(),VIEW->getGreen(),VIEW->getBlue());
+    VIEW->modifyColor(rgbState);
+    setRgbColor(rgbState);
   } else if(VIEW_INDEX==1) {  // Orange view
     VIEW_INDEX=0;
     VIEW=new View_Green();
-    setRgbColor(VIEW->getRed(),VIEW->getGreen(),VIEW->getBlue());
+    VIEW->modifyColor(rgbState);
+    setRgbColor(rgbState);
   } else if(VIEW_INDEX==0) {  // Green view
     VIEW_INDEX=2;
     VIEW=new View_Cyan();
-    setRgbColor(VIEW->getRed(),VIEW->getGreen(),VIEW->getBlue());
+    VIEW->modifyColor(rgbState);
+    setRgbColor(rgbState);
   }
+  ledSwipeLeft();
 }
 void reset_view() {
   if(VIEW_INDEX != 0) {
     VIEW_INDEX=0;
     VIEW=new View_Green();
-    setRgbColor(VIEW->getRed(),VIEW->getGreen(),VIEW->getBlue());
+    VIEW->modifyColor(rgbState);
+    setRgbColor(rgbState);
   }
+  ledResetView();
 }
 
 
@@ -246,28 +265,21 @@ void reset_view() {
 /** 
  *  Enable or disable the busy signal (red rgb led)
  */
-uint8_t greenColor[3] = {0,255,0};
-uint8_t redColor[3] = {255,0,0};
+uint8_t busyColor[3] = {0,0,0};
 void busyWarning(bool enabled) {
   if(enabled) {
-    setRgbColor(redColor[0],redColor[1],redColor[2]);
+    setRgbColor(busyColor);
   } else {
-    setRgbColor(greenColor[0],greenColor[1],greenColor[2]);
+    setRgbColor(rgbState);
   }
 }
-/**
- * Shortcut to control the rgb color
- */
-void setRgbColor(uint8_t red, uint8_t green, uint8_t blue) {
-  analogWrite(PIN_RGB_RED, red);
-  analogWrite(PIN_RGB_GREEN, green);
-  analogWrite(PIN_RGB_BLUE, blue);
-}
-void setRgbColor(uint8_t *c) {
+
+void setRgbColor(uint8_t c[]) {
   analogWrite(PIN_RGB_RED, c[0]);
   analogWrite(PIN_RGB_GREEN, c[1]);
   analogWrite(PIN_RGB_BLUE, c[2]);
 }
+
 /**
  * ledTest
  * Create an animation to check the leds
@@ -310,3 +322,45 @@ void ledTest() {
     delayMicroseconds(rgbWait);
   }
 } // end led test
+
+void ledSwipeLeft() {
+  int ledWait=20;
+  for(int i=0; i<ITEMS; i++) {
+    digitalWrite(PIN_STATE_LED[i], HIGH);
+    delay(ledWait);
+  }
+  for(int i=0; i<ITEMS; i++) {
+    digitalWrite(PIN_STATE_LED[i], LOW);
+    delay(ledWait);
+  }
+}
+void ledSwipeRight() {
+  int ledWait=20;
+  for(int i=ITEMS-1; i>=0; i--) {
+    digitalWrite(PIN_STATE_LED[i], HIGH);
+    delay(ledWait);
+  }
+  for(int i=ITEMS-1; i>=0; i--) {
+    digitalWrite(PIN_STATE_LED[i], LOW);
+    delay(ledWait);
+  }
+}
+void ledResetView() {
+  digitalWrite(PIN_STATE_LED[0], HIGH);
+  digitalWrite(PIN_STATE_LED[2], HIGH);
+  digitalWrite(PIN_STATE_LED[3], HIGH);
+  digitalWrite(PIN_STATE_LED[5], HIGH);
+  digitalWrite(PIN_STATE_LED[1], LOW);
+  digitalWrite(PIN_STATE_LED[4], LOW);
+  delay(100);
+  digitalWrite(PIN_STATE_LED[1], HIGH);
+  digitalWrite(PIN_STATE_LED[4], HIGH);
+  digitalWrite(PIN_STATE_LED[0], LOW);
+  digitalWrite(PIN_STATE_LED[2], LOW);
+  digitalWrite(PIN_STATE_LED[3], LOW);
+  digitalWrite(PIN_STATE_LED[5], LOW);
+  delay(100);
+  digitalWrite(PIN_STATE_LED[1], LOW);
+  digitalWrite(PIN_STATE_LED[4], LOW);
+  
+}

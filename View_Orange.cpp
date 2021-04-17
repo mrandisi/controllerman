@@ -8,12 +8,12 @@
 
 View_Orange::View_Orange()
 {
-    this->red=255;
-    this->green=127;
-    this->blue=0;
-
-    //uint8_t col[3] = {255,0,0};
-    // *this->color=*col;
+  if(submit==NULL) {
+    submit = new Submit_gtk();
+  }
+  
+  uint8_t orange[] = {255,0,0};
+  this->setColor(orange);
 }
 
 void View_Orange::butt1_singlePress() {

@@ -8,12 +8,12 @@
 
 View_Cyan::View_Cyan()
 {
-    this->red=0;
-    this->green=255;
-    this->blue=255;
-
-    //uint8_t col[3] = {255,0,0};
-    // *this->color=*col;
+  if(submit==NULL) {
+    submit = new Submit_gtk();
+  }
+  
+  uint8_t cyan[] = {0,0,255};
+  this->setColor(cyan);
 }
 
 void View_Cyan::butt1_singlePress() {

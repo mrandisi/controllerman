@@ -4,29 +4,26 @@
 
 #include "Arduino.h"
 #include "View.h"
+//#include "Submit_gtk.h"
 
 View::View()
 {
   
 }
-uint8_t View::getColor() {
-  //return this->color;
-  uint8_t a[3] = {this->red, this->green, this->blue};
-  return a;
+void View::modifyColor(uint8_t col[]) {
+  col[0] = this->red;
+  col[1] = this->green;
+  col[2] = this->blue;
 }
-uint8_t View::getRed() {
-  return this->red;
-}
-uint8_t View::getGreen() {
-  return this->green;
-}
-uint8_t View::getBlue() {
-  return this->blue;
+void View::setColor(uint8_t col[]) {
+  this->red = col[0];
+  this->green = col[1];
+  this->blue = col[2];
 }
 
 void View::singlePress(uint8_t button) {
-    if(DEBUG) {
-    Serial.print("Single press: ");
+  if(DEBUG) {
+    Serial.print("singlePress: ");
     Serial.println(button, DEC);
   }
   switch (button) {
@@ -56,10 +53,9 @@ void View::singlePress(uint8_t button) {
 }
 bool View::singlePress_hold(uint8_t button) {
   if(DEBUG) {
-    Serial.print("Long press: ");
+    Serial.print("singlePress_hold: ");
     Serial.println(button, DEC);
   }
-  
   switch (button) {
     case 1:
       // statements
@@ -90,9 +86,8 @@ bool View::singlePress_hold(uint8_t button) {
 }
 void View::doublePress(uint8_t button1, uint8_t button2) {
   if(DEBUG) {
-    Serial.print("Double press: ");
+    Serial.print("doublePress: ");
     Serial.print(button1, DEC);
-    Serial.print("+");
     Serial.println(button2, DEC);
   }
   uint8_t c = button1+button2;
@@ -117,9 +112,8 @@ void View::doublePress(uint8_t button1, uint8_t button2) {
 }
 bool View::doublePress_hold(uint8_t button1, uint8_t button2) {
   if(DEBUG) {
-    Serial.print("Long double press: ");
+    Serial.print("doublePress_hold: ");
     Serial.print(button1, DEC);
-    Serial.print("+");
     Serial.println(button2, DEC);
   }
   uint8_t c = button1+button2;

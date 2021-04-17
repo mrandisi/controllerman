@@ -5,16 +5,15 @@
 #define View_h
 
 #include "Arduino.h"
+#include "Submit_gtk.h"
 
 class View
 {
   public:
     View();
     bool DEBUG=true;
-    uint8_t getColor();
-    uint8_t getRed();
-    uint8_t getGreen();
-    uint8_t getBlue();
+    void setColor(uint8_t []);
+    void modifyColor(uint8_t []);
     
     void singlePress(uint8_t);
     bool singlePress_hold(uint8_t);
@@ -33,11 +32,18 @@ class View
     virtual void doublePress_4_5();
     virtual void doublePress_5_6();
     
+    Submit_gtk* submit = NULL;
+    
+  protected:
+    void printSerial(char*, int);
+    
     uint8_t red;
     uint8_t green;
     uint8_t blue;
     
+    
   private:
+    
     
 };
 
