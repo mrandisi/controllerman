@@ -56,6 +56,7 @@ bool View::singlePress_hold(uint8_t button) {
     Serial.print("singlePress_hold: ");
     Serial.println(button, DEC);
   }
+  bool break_flag = true;
   switch (button) {
     case 1:
       // statements
@@ -81,7 +82,6 @@ bool View::singlePress_hold(uint8_t button) {
       break;
   }
   
-  bool break_flag = true;
   return break_flag;
 }
 void View::doublePress(uint8_t button1, uint8_t button2) {
@@ -116,19 +116,20 @@ bool View::doublePress_hold(uint8_t button1, uint8_t button2) {
     Serial.print(button1, DEC);
     Serial.println(button2, DEC);
   }
+  bool break_flag = true;
   uint8_t c = button1+button2;
   switch (c) {
     case 3: // button 1 + button 2
-      // statements
+      break_flag = doublePress_hold_1_2();
       break;
     case 5: // 2+3
-      // statements
+      break_flag = doublePress_hold_2_3();
       break;
     case 9: // ...
-      // statements
+      break_flag = doublePress_hold_4_5();
       break;
     case 11:
-      // statements
+      break_flag = doublePress_hold_5_6();
       break;
   
     default:
@@ -136,6 +137,69 @@ bool View::doublePress_hold(uint8_t button1, uint8_t button2) {
       break;
   }
   
-  bool break_flag = true;
+  return break_flag;
+}
+
+// SINGLE PRESS
+void View::butt1_singlePress() {
+}
+void View::butt2_singlePress() {
+}
+void View::butt3_singlePress() {
+}
+void View::butt4_singlePress() {
+}
+void View::butt5_singlePress() {
+}
+void View::butt6_singlePress() {
+}
+
+// SINGLE PRESS HOLD
+bool View::butt1_singlePress_hold() {
   return true;
+}
+bool View::butt2_singlePress_hold() {
+  return true;
+}
+bool View::butt3_singlePress_hold() {
+  return true;
+}
+bool View::butt4_singlePress_hold() {
+  return true;
+}
+bool View::butt5_singlePress_hold() {
+  return true;
+}
+bool View::butt6_singlePress_hold() {
+  return true;
+}
+
+// DOUBLE PRESS
+void View::doublePress_1_2() {
+}
+void View::doublePress_2_3() {
+  submit->patchUp();
+}
+void View::doublePress_4_5() {
+}
+void View::doublePress_5_6() {
+  submit->patchDown();
+}
+
+// DOUBLE PRESS HOLD
+bool View::doublePress_hold_1_2() {
+  return true;;
+}
+bool View::doublePress_hold_2_3() {
+  submit->patchUp();
+  delay(100);
+  return false;
+}
+bool View::doublePress_hold_4_5() {
+  return true;
+}
+bool View::doublePress_hold_5_6() {
+  submit->patchDown();
+  delay(100);
+  return false;
 }

@@ -10,9 +10,8 @@ MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 
 Submit_gtk::Submit_gtk()
 {
-  Serial1.begin(9600);
+  //Serial1.begin(9600);
   MIDI.begin();
-  
 }
 
 /**
@@ -39,4 +38,10 @@ void Submit_gtk::patchDown() {
   }
   
   MIDI.sendProgramChange (patch_state-1, channel); // counts from 0 that stands for the patch 1
+}
+
+void Submit_gtk::toggleFx(uint8_t cc) {
+  MIDI.sendControlChange(cc, 0, channel);
+  delay(5);
+  MIDI.sendControlChange(cc, 127, channel);
 }

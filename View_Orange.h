@@ -18,11 +18,6 @@ class View_Orange : public View
     virtual void butt4_singlePress();
     virtual void butt5_singlePress();
     virtual void butt6_singlePress();
-
-    virtual void doublePress_1_2();
-    virtual void doublePress_2_3();
-    virtual void doublePress_4_5();
-    virtual void doublePress_5_6();
     
   private:
     
