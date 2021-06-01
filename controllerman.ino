@@ -2,33 +2,23 @@
  * ControllerMan
  * www.controllerman.com
  * 
- * Program tier is devided into 3 sections
- * ACTION > BEHAVIOR > SUBMISSION (device mapping)
- * 
- * ACTION takes the buttons input and generate the proper calls.
- * BEHAVIOR defines the relation between the action and the execution.
- * SUBMISSION contains all the commands device-specific to realize the control.
- * 
  */
-#include <Bounce2.h>
-#include "View.h"
-#include "View_Green.h"
-#include "View_Orange.h"
-#include "View_Cyan.h"
+#include <Bounce2.h>  // buttons anti bounce
+#include <avr/pgmspace.h> // PROGMEM
+#include <MIDI.h>
+#include "DeviceSettings.h"
+#include "Display.h"
 
-#include "LibMIDI/MIDI.h"
-
-const bool DEBUG = true;
+MIDI_CREATE_INSTANCE(HardwareSerial, Serial, MIDI); //Serial1
+//MIDI_CREATE_DEFAULT_INSTANCE();
 
 const uint8_t ITEMS = 6;
 
 // pinout configuration
-const uint8_t PIN_BUTTON [ITEMS] = {18, 19, 20, 21, 11, 12}; // from 1st to 6th
-const uint8_t PIN_STATE_LED [ITEMS] = {2, 3, 4, 5, 6, 7};  // from 1st to 6th
-const uint8_t PIN_RGB_RED = 8;
-const uint8_t PIN_RGB_GREEN = 9;
-const uint8_t PIN_RGB_BLUE = 10;
-uint8_t rgbState[3] = {0,255,0};
+const uint8_t PIN_BUTTON [ITEMS] = {14, 15, 16, 17, 18, 19}; // from 1st to 6th
+const uint8_t PIN_RGB_RED = 5;
+const uint8_t PIN_RGB_GREEN = 6;
+const uint8_t PIN_RGB_BLUE = 9;
 
 // Define possible button combinations
 // First {2,4} means that button 1 can be combined as 1+2 and 1+4
@@ -40,26 +30,30 @@ const uint8_t DOUBLE_BUTT_COMBINATION[6][3] = {
           {4,2,6},  // butt 5
           {3,5}};   // butt 6
 
+uint8_t RGB_STATE[3] = {0,255,0};
+
+bool title_timeout_enabled=false;
+int title_start_time = 0;
 
 // Instantiate the Bounce objects
 Bounce * DEBOUNCER = new Bounce[ITEMS];   // 6 debouncing objects
 
-// Instantiate the views
-View* VIEW;
-uint8_t VIEW_INDEX=0;
-
 void setup() {
+
+  //init_settings();
+  init_display();
+  
+  MIDI.begin();
+  //MIDI.begin(MIDI_CHANNEL_OMNI); // Initialize the Midi Library.
+  //MIDI.setHandleControlChange(processCCmsg); // This command tells the MIDI Library
+  //MIDI.setHandleProgramChange(processPCmsg); // This command tells the MIDI Library
+  
   // Initialize the button pins
   for (int i = 0; i < ITEMS; i++) {
     pinMode(PIN_BUTTON[i] ,INPUT_PULLUP);
   }
 
-  // Initialize led pins
-  for (int i = 0; i < ITEMS; i++) {
-     pinMode(PIN_STATE_LED[i], OUTPUT);
-  }
-
-  // Initialize RGB pins
+  // Initialize RGB led pins
   pinMode(PIN_RGB_RED, OUTPUT);
   pinMode(PIN_RGB_GREEN, OUTPUT);
   pinMode(PIN_RGB_BLUE, OUTPUT);
@@ -71,42 +65,69 @@ void setup() {
     DEBOUNCER[i].interval(bounceInterval);
   }
   
-  // Init the View
-  VIEW = new View_Green();
-  
+  splash();
   ledTest();
+  delay(500);
+
+  load_default_states();
+  loadView();
   
-  VIEW->modifyColor(rgbState);
-  setRgbColor(rgbState);
+  // Synchronize all data at the beginning
+  updateDevice();
   
 } // end Setup
 
 void loop() {
+
+  //MIDI.read(); // Continuously check if Midi data has been received.
+  
   // Check all buttons
   for(uint8_t i=0; i<ITEMS; i++) {
     DEBOUNCER[i].update();
     if(DEBOUNCER[i].read()==LOW) { // button is pressed
       
-      busyWarning(true);  // Warns the user that system is busy putting the rgb to red
-
       // Stops checking all the hardware focusing only on one control
       manageAction(i);
-      
-      busyWarning(false);
     }
-    
   } // end for all buttons cycle
+  
+  // title timeout restore
+  if(title_timeout_enabled) {
+    int nowTime = millis();
+    if(nowTime-title_start_time > 1000) {
+      sprintf (scr.title, "Patch %d", PATCH_STATE);
+      buildScreen();
+      title_timeout_enabled=false;
+    }
+  }
+
+  // TODO: Lazy Ops.
+  
 } // end loop()
 
 /**
- * Manage the user action
+ * A delay function that refresh processes while waits
  */
+void customDelay(int delayTime) {
+  const int startTime = millis();
+  int nowTime=startTime;
+  while(nowTime-startTime < delayTime) {
+
+    updateRealtimeProcesses();
+    
+    nowTime = millis();
+  }
+}
+void updateRealtimeProcesses() {
+  //MIDI.read(); // Continuously check if Midi data has been received.
+}
+
 void manageAction(uint8_t i) {
   unsigned long press_time = millis();
   
   while(DEBOUNCER[i].read()==LOW) { // while button is released
     
-    if((millis() - press_time) < 1000) {  // not a long press (... user haves one second to press a second button)
+    if((millis() - press_time) < 1000) {  // not a long press. User haves one second to press also a second button)
       
       // check nearby buttons
       uint8_t j=0;
@@ -172,12 +193,28 @@ void manageAction(uint8_t i) {
 } // end manage action
 
 void singlePress(uint8_t button) {
-  VIEW->singlePress(button);
+
+  scr.buttonState[button-1]=!scr.buttonState[button-1];
+  buildScreen();
+  
+  uint8_t virtual_button_index = (6*CURRENT_VIEW) + (button-1);
+  
+  if(button_states[virtual_button_index]==false) {  // is inactive
+    button_states[virtual_button_index]=true;
+    MIDI.sendControlChange(ccs[virtual_button_index], 127, channel); // activate
+  } else {                    // is active
+    button_states[virtual_button_index]=false;
+    MIDI.sendControlChange(ccs[virtual_button_index], 0, channel);
+  } // end if false
+
+  loadView();
 }
+
 bool singlePress_hold(uint8_t button) {
-  bool break_flag = VIEW->singlePress_hold(button);
-  return break_flag;
+  //bool break_flag = VIEW->singlePress_hold(button);
+  return false;//break_flag;
 }
+
 void doublePress(uint8_t button1, uint8_t button2) {
   // sort the button numbers for convenience
   if(button1 > button2) { 
@@ -185,17 +222,26 @@ void doublePress(uint8_t button1, uint8_t button2) {
     button1 = button2;
     button2 = temp;
   }
+  //char buf[8];
+  //sprintf (buf, "%d", button1+button2);
+  //text=buf;
+  //buildScreen();
   
   if(button1==3 && button2==6) {  // combination reserved to scroll the view forward
-    scroll_prev_view();
-  } else if(button1==1 && button2==4) {  // combination reserved to scroll the view forward
     scroll_next_view();
+  } else if(button1==1 && button2==4) {  // combination reserved to scroll the view forward
+    scroll_prev_view();
   } else if(button1==2 && button2==5) {
-    reset_view();
+    //reset_view();
+  } else if(button1==5 && button2==6) {  // combination reserved to patch up/down
+    patchUp();
+  } else if(button1==2 && button2==3) {
+    patchDown();
   } else {
-    VIEW->doublePress(button1, button2);
+    //VIEW->doublePress(button1, button2);
   }
 }
+
 bool doublePress_hold(uint8_t button1, uint8_t button2) {
   // sort the button numbers for convenience
   if(button1 > button2) { 
@@ -203,105 +249,160 @@ bool doublePress_hold(uint8_t button1, uint8_t button2) {
     button1 = button2;
     button2 = temp;
   }
-  bool break_flag = VIEW->doublePress_hold(button1, button2);
-  return break_flag;
+  write_button_states();
+  setTemporaryTitle("View saved!");
+  //bool break_flag = VIEW->doublePress_hold(button1, button2);
+  return true;//break_flag;
 }
 
-
+void scroll_next_view() {
+  if(CURRENT_VIEW < 3) {
+    CURRENT_VIEW++;
+  } else {
+    CURRENT_VIEW=0;
+  }
+  loadView();
+}
 
 void scroll_prev_view() {
-  if(VIEW_INDEX==0) { // Green view
-    VIEW_INDEX=1;
-    VIEW=new View_Orange();
-    VIEW->modifyColor(rgbState);
-    setRgbColor(rgbState);
-  } else if(VIEW_INDEX==1) {  // Orange view
-    VIEW_INDEX=2;
-    VIEW=new View_Cyan();
-    VIEW->modifyColor(rgbState);
-  setRgbColor(rgbState);
-  } else if(VIEW_INDEX==2) {  // Cyan view
-    VIEW_INDEX=0;
-    VIEW=new View_Green();
-    VIEW->modifyColor(rgbState);
-    setRgbColor(rgbState);
-  }
-  ledSwipeRight();
-}
-void scroll_next_view() {
-  if(VIEW_INDEX==2) { // Cyan view
-    VIEW_INDEX=1;
-    VIEW=new View_Orange();
-    VIEW->modifyColor(rgbState);
-    setRgbColor(rgbState);
-  } else if(VIEW_INDEX==1) {  // Orange view
-    VIEW_INDEX=0;
-    VIEW=new View_Green();
-    VIEW->modifyColor(rgbState);
-    setRgbColor(rgbState);
-  } else if(VIEW_INDEX==0) {  // Green view
-    VIEW_INDEX=2;
-    VIEW=new View_Cyan();
-    VIEW->modifyColor(rgbState);
-    setRgbColor(rgbState);
-  }
-  ledSwipeLeft();
-}
-void reset_view() {
-  if(VIEW_INDEX != 0) {
-    VIEW_INDEX=0;
-    VIEW=new View_Green();
-    VIEW->modifyColor(rgbState);
-    setRgbColor(rgbState);
-  }
-  ledResetView();
-}
-
-
-/**
- * UTILS  -----------------------------------------------------------------
- */
-
-/** 
- *  Enable or disable the busy signal (red rgb led)
- */
-uint8_t busyColor[3] = {0,0,0};
-void busyWarning(bool enabled) {
-  if(enabled) {
-    setRgbColor(busyColor);
+  if(CURRENT_VIEW > 0) {
+    CURRENT_VIEW--;
   } else {
-    setRgbColor(rgbState);
+    CURRENT_VIEW=3;
   }
+  loadView();
+}
+
+void loadView() {
+  char ttl[16];
+  switch(CURRENT_VIEW) {
+    case 0:
+      RGB_STATE[0]=0;
+      RGB_STATE[1]=255;
+      RGB_STATE[2]=0;
+      setRgbColor(RGB_STATE);
+      strcpy(ttl, "Green View");
+      break;
+    case 1:
+      RGB_STATE[0]=0;
+      RGB_STATE[1]=128;
+      RGB_STATE[2]=255;
+      setRgbColor(RGB_STATE);
+      strcpy(ttl, "Blue View");
+      break;
+    case 2:
+      RGB_STATE[0]=255;
+      RGB_STATE[1]=0;
+      RGB_STATE[2]=0;
+      setRgbColor(RGB_STATE);
+      strcpy(ttl, "Red View");
+      break;
+    case 3:
+      RGB_STATE[0]=255;
+      RGB_STATE[1]=0;
+      RGB_STATE[2]=255;
+      setRgbColor(RGB_STATE);
+      strcpy(ttl, "Purple View");
+      break;
+  }
+  
+  // load button states from current view 
+  uint8_t shift = 6 * CURRENT_VIEW;  // 6*0=0; 6*1=6; 6*2=12...
+  for(uint8_t i=0; i<6; i++) {
+    scr.buttonState[i] = button_states[i+shift];
+  }
+  
+  setTemporaryTitle(ttl);
+  loadFxNames();
+  buildScreen();
+}
+
+void showButtonStates() {
+
+}
+
+void loadFxNames() {
+  uint8_t shift = 6*CURRENT_VIEW;  // 6*0=0; 6*1=6; 6*2=12...
+  
+  strcpy_P(scr.fxLabel1, (char*)pgm_read_word(&(gtModulesShortName[button2deviceMap[0+shift]])));
+  strcpy_P(scr.fxLabel2, (char*)pgm_read_word(&(gtModulesShortName[button2deviceMap[1+shift]])));
+  strcpy_P(scr.fxLabel3, (char*)pgm_read_word(&(gtModulesShortName[button2deviceMap[2+shift]])));
+  strcpy_P(scr.fxLabel4, (char*)pgm_read_word(&(gtModulesShortName[button2deviceMap[3+shift]])));
+  strcpy_P(scr.fxLabel5, (char*)pgm_read_word(&(gtModulesShortName[button2deviceMap[4+shift]])));
+  strcpy_P(scr.fxLabel6, (char*)pgm_read_word(&(gtModulesShortName[button2deviceMap[5+shift]])));
+  
+  strcpy_P(scr.fxDescr1, (char*)pgm_read_word(&(gtModulesLongName[button2deviceMap[0+shift]])));
+  strcpy_P(scr.fxDescr2, (char*)pgm_read_word(&(gtModulesLongName[button2deviceMap[1+shift]])));
+  strcpy_P(scr.fxDescr3, (char*)pgm_read_word(&(gtModulesLongName[button2deviceMap[2+shift]])));
+  strcpy_P(scr.fxDescr4, (char*)pgm_read_word(&(gtModulesLongName[button2deviceMap[3+shift]])));
+  strcpy_P(scr.fxDescr5, (char*)pgm_read_word(&(gtModulesLongName[button2deviceMap[4+shift]])));
+  strcpy_P(scr.fxDescr6, (char*)pgm_read_word(&(gtModulesLongName[button2deviceMap[5+shift]])));
+  
+}
+
+/** ----------------------------------------------------------
+ *          UTILS
+ * ----------------------------------------------------------
+ */
+ 
+void patchUp(){
+  if(PATCH_STATE < 125) { // 125 is the last patch, 126 and 127 are not used.
+    PATCH_STATE++;
+  } else {
+    PATCH_STATE=1;  // loops to the first patch
+  }
+  sprintf (scr.title, "Patch %d", PATCH_STATE);
+  load_default_states();
+  loadView();
+  MIDI.sendProgramChange (PATCH_STATE-1, channel); // counts from 0 that stands for the patch 1
+  delay(5);
+}
+
+void patchDown() {
+  if(PATCH_STATE > 1) {
+    PATCH_STATE--;
+  } else {
+    PATCH_STATE=125;  // loops to the last patch
+  }
+  sprintf (scr.title, "Patch %d", PATCH_STATE);
+  load_default_states();
+  loadView();
+  MIDI.sendProgramChange (PATCH_STATE-1, channel); // counts from 0 that stands for the patch 1
+  delay(5);
+}
+
+void updateDevice() {
+  // send the patch number
+  MIDI.sendProgramChange (PATCH_STATE-1, channel); // counts from 0 that stands for the patch 1
+
+  // TODO: foreach button
+  //          --> send the state
 }
 
 void setRgbColor(uint8_t c[]) {
-  analogWrite(PIN_RGB_RED, c[0]);
-  analogWrite(PIN_RGB_GREEN, c[1]);
-  analogWrite(PIN_RGB_BLUE, c[2]);
+  uint8_t divider = 64;
+  analogWrite(PIN_RGB_RED, c[0]/divider);
+  analogWrite(PIN_RGB_GREEN, c[1]/divider);
+  analogWrite(PIN_RGB_BLUE, c[2]/divider);
 }
 
-/**
- * ledTest
- * Create an animation to check the leds
- */
 void ledTest() {
-  int ledWait=50;
-  for(int i=0; i<ITEMS; i++) {
-    digitalWrite(PIN_STATE_LED[i], HIGH);
-    delay(ledWait);
-  }
-  for(int i=0; i<ITEMS; i++) {
-    digitalWrite(PIN_STATE_LED[i], LOW);
-    delay(ledWait);
-  }
 
   // RGB animation
-  int rgbWait=500;
-  for(int i=0; i<256; i++){
+  int rgbWait=10000;
+  /*for(int i=0; i<256; i++){
+    analogWrite(PIN_RGB_RED, i);
+    delayMicroseconds(rgbWait);
+  }
+    for(int i=255; i>=0; i--){
     analogWrite(PIN_RGB_RED, i);
     delayMicroseconds(rgbWait);
   }
   for(int i=0; i<256; i++){
+    analogWrite(PIN_RGB_GREEN, i);
+    delayMicroseconds(rgbWait);
+  }
+    for(int i=255; i>=0; i--){
     analogWrite(PIN_RGB_GREEN, i);
     delayMicroseconds(rgbWait);
   }
@@ -310,57 +411,53 @@ void ledTest() {
     delayMicroseconds(rgbWait);
   }
   for(int i=255; i>=0; i--){
-    analogWrite(PIN_RGB_RED, i);
-    delayMicroseconds(rgbWait);
-  }
-  for(int i=255; i>=0; i--){
-    analogWrite(PIN_RGB_GREEN, i);
-    delayMicroseconds(rgbWait);
-  }
-  for(int i=255; i>=0; i--){
     analogWrite(PIN_RGB_BLUE, i);
+    delayMicroseconds(rgbWait);
+  }*/
+
+  for(int i=0; i<64; i++){
+    analogWrite(PIN_RGB_RED, i);
+    //analogWrite(PIN_RGB_GREEN, i);
+    //analogWrite(PIN_RGB_BLUE, i);
+    delayMicroseconds(rgbWait);
+  }
+  for(int i=64; i>=0; i--){
+    analogWrite(PIN_RGB_RED, i);
+    //analogWrite(PIN_RGB_GREEN, i);
+    //analogWrite(PIN_RGB_BLUE, i);
     delayMicroseconds(rgbWait);
   }
 } // end led test
 
-void ledSwipeLeft() {
-  int ledWait=20;
-  for(int i=0; i<ITEMS; i++) {
-    digitalWrite(PIN_STATE_LED[i], HIGH);
-    delay(ledWait);
-  }
-  for(int i=0; i<ITEMS; i++) {
-    digitalWrite(PIN_STATE_LED[i], LOW);
-    delay(ledWait);
-  }
+void setTemporaryTitle(char * tmpTitle) {
+  title_timeout_enabled=true;
+  title_start_time = millis();
+  strcpy(scr.title,tmpTitle);
+  buildScreen();
 }
-void ledSwipeRight() {
-  int ledWait=20;
-  for(int i=ITEMS-1; i>=0; i--) {
-    digitalWrite(PIN_STATE_LED[i], HIGH);
-    delay(ledWait);
-  }
-  for(int i=ITEMS-1; i>=0; i--) {
-    digitalWrite(PIN_STATE_LED[i], LOW);
-    delay(ledWait);
-  }
+
+/** ----------------------------------------------------------
+ *          END UTILS
+ * ----------------------------------------------------------
+ */
+
+
+/**----------------------------------------------------------
+ *          MIDI READ
+ ----------------------------------------------------------*/
+/*void processPCmsg(byte channel, byte number, byte value) {
+  //PATCH_STATE=number+1;
+  char buf[8];
+  sprintf (buf, "PC %d", number+1);
+  strcpy(scr.title,buf);
+  buildScreen();
 }
-void ledResetView() {
-  digitalWrite(PIN_STATE_LED[0], HIGH);
-  digitalWrite(PIN_STATE_LED[2], HIGH);
-  digitalWrite(PIN_STATE_LED[3], HIGH);
-  digitalWrite(PIN_STATE_LED[5], HIGH);
-  digitalWrite(PIN_STATE_LED[1], LOW);
-  digitalWrite(PIN_STATE_LED[4], LOW);
-  delay(100);
-  digitalWrite(PIN_STATE_LED[1], HIGH);
-  digitalWrite(PIN_STATE_LED[4], HIGH);
-  digitalWrite(PIN_STATE_LED[0], LOW);
-  digitalWrite(PIN_STATE_LED[2], LOW);
-  digitalWrite(PIN_STATE_LED[3], LOW);
-  digitalWrite(PIN_STATE_LED[5], LOW);
-  delay(100);
-  digitalWrite(PIN_STATE_LED[1], LOW);
-  digitalWrite(PIN_STATE_LED[4], LOW);
-  
-}
+void processCCmsg(byte channel, byte number, byte value) {
+  char buf[8];
+  sprintf (buf, "CC %d %d", number, value);
+  strcpy(scr.title,buf);
+  buildScreen();
+}*/
+/**----------------------------------------------------------
+ *          END MIDI READ 
+ * ----------------------------------------------------------*/
