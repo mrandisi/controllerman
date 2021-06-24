@@ -14,41 +14,7 @@ bool button_states[24];
 
 int eeprom_states_shift=100;
 int eeprom_fx_shift=500;
-
-// these are the default effect on/off states at the patch loading
-//bool default_states[24];
-
-// button-to-device association (array index to index)
-uint8_t button2deviceMap[24] = 
-                      {0, 1, 2, 3, 26, 6,           // effects on view 1
-                        11, 12, 13, 14, 15, 1,      // effects on view 2
-                          1, 2, 3, 4, 5, 0,         // effects on view 3
-                            28, 16, 13, 8, 15, 19};  // effects on view 4
-
-// the ControlNumber associated to the gtk modules
-/*uint8_t ccs[31]    =  {		
-          11, 12, 13, 14, 15, 
-					16, 17, 18, 19, 20, 
-					21, 22, 23, 24, 25, 
-					26, 27, 28, 29, 30, 
-					31, 32, 33, 34, 35, 
-					36, 37, 38, 39, 40,
-					41};*/
-
-              
-// Associations between FX modiles and his effect name, array index (from 0)
-/*uint8_t module2fx1_association=6;
-uint8_t module2fx2_association=12;
-uint8_t module2fx3_association=30;*/
-
-
-/*struct Effect {
-  uint8_t button;
-  boolean default_state;
-  uint8_t ccNumber;
-  char* shortName[8];
-  char* longName[16];
-};*/
+const int eeprom_patch_default_state=50;
 
 namespace settings
 {
@@ -81,31 +47,6 @@ const char defFx_21[] PROGMEM = "SBKSlapback";
 const char defFx_22[] PROGMEM = "ECOEcho";
 const char defFx_23[] PROGMEM = "RVBReverb";
 
-/*const char defFx_0[] PROGMEM = "1  A";
-const char defFx_1[] PROGMEM = "2  B";
-const char defFx_2[] PROGMEM = "3  C";
-const char defFx_3[] PROGMEM = "4  D";
-const char defFx_4[] PROGMEM = "5  E";
-const char defFx_5[] PROGMEM = "6  F";
-const char defFx_6[] PROGMEM = "7  7";
-const char defFx_7[] PROGMEM = "8  8";
-const char defFx_8[] PROGMEM = "9  9";
-const char defFx_9[] PROGMEM = "10 10";
-const char defFx_10[] PROGMEM = "11 11";
-const char defFx_11[] PROGMEM = "12 12";
-const char defFx_12[] PROGMEM = "13 13";
-const char defFx_13[] PROGMEM = "14 14";
-const char defFx_14[] PROGMEM = "15 15";
-const char defFx_15[] PROGMEM = "16 16";
-const char defFx_16[] PROGMEM = "17 17";
-const char defFx_17[] PROGMEM = "18 18";
-const char defFx_18[] PROGMEM = "19 19";
-const char defFx_19[] PROGMEM = "20 20";
-const char defFx_20[] PROGMEM = "21 21";
-const char defFx_21[] PROGMEM = "22 22";
-const char defFx_22[] PROGMEM = "23 23";
-const char defFx_23[] PROGMEM = "24 24";*/
-
 const char* const defFx[] PROGMEM = {
   defFx_0,defFx_1,defFx_2,defFx_3,defFx_4,
   defFx_5,defFx_6,defFx_7,defFx_8,defFx_9,
@@ -119,18 +60,6 @@ const char layoutName_1[] PROGMEM = "Cyan";
 const char layoutName_2[] PROGMEM = "Green";
 const char layoutName_3[] PROGMEM = "Purple";
 const char* const layoutName[] PROGMEM = {layoutName_0,layoutName_1,layoutName_2,layoutName_3};
-
-/*const char menu0_0[] PROGMEM = "Settings";
-const char menu0_1[] PROGMEM = "Swap Buttons";
-const char menu0_2[] PROGMEM = "Save button states";
-const char menu0_3[] PROGMEM = "Edit button labels";
-const char menu0_4[] PROGMEM = "Set the boot patch";
-const char menu0_5[] PROGMEM = "Calibrate exp pedal";
-const char menu0_6[] PROGMEM = "Reset device";
-const char* const menu0[] PROGMEM = {
-  menu0_0,menu0_1,menu0_2,menu0_3,menu0_4,menu0_5,menu0_6
-};*/
-
 
  byte boolArrayToByte(bool boolArray[8]) {
   byte bits;
@@ -213,7 +142,7 @@ void write_default_fx() {
     //fx[0]=i+1;  // consecutive cc numbers from 1 to 24
 
     int charLocation = eeprom_fx_shift + (i * 14);  // +0 first location
-    EEPROM.write(charLocation, i + 60);  // write consecutive cc numbers from 60 to 84
+    EEPROM.write(charLocation, i + 1);  // write consecutive cc numbers from 1 to 24
     
     for(uint8_t j=1; j<14; j++) {
       
@@ -222,9 +151,7 @@ void write_default_fx() {
       EEPROM.write(charLocation, fxName[j-1]);
     }
     strcpy(fxName, "             ");
-    
   }
-  
 }
 
 uint8_t getFxChannel(uint8_t virtualButton) {
@@ -250,6 +177,21 @@ void getFxLongName(uint8_t virtualButton, char fx[10]) { // button from 0 to 23
   fx[10]='\0';
 }
 
+void getFx(uint8_t virtualButton, char fx[15]) {   // button from 0 to 23
+  
+  for(uint8_t i=0; i<14; i++) {
+    fx[i] = EEPROM.read(eeprom_fx_shift + (virtualButton*14) + i);
+  }
+  fx[14]='\0';
+}
+
+void writeFx(uint8_t virtualButton, char fx[15]) {   // button from 0 to 23
+  
+  for(uint8_t i=0; i<14; i++) {
+    EEPROM.write(eeprom_fx_shift + (virtualButton*14) + i, fx[i]);
+  }
+  
+}
 
 void setFxChannel(uint8_t virtualButton, byte channel) {
   EEPROM.write(eeprom_fx_shift + (virtualButton*14), channel);
@@ -269,6 +211,13 @@ void setFxLongName(uint8_t virtualButton, char fx[10]) { // button from 0 to 23
   }
 }
 
+uint8_t read_default_patch() {
+  return EEPROM.read(eeprom_patch_default_state);
+}
+
+void write_default_patch(uint8_t patch_num) {
+  EEPROM.write(eeprom_patch_default_state, patch_num);
+}
 
 
 

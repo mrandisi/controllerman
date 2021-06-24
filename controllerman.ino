@@ -8,6 +8,7 @@
 #include <MIDI.h>
 #include "DeviceSettings.h"
 #include "Display.h"
+#include "Utils.h"
 
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial, MIDI); //Serial1
 //MIDI_CREATE_DEFAULT_INSTANCE();
@@ -46,8 +47,8 @@ void setup() {
   
   //MIDI.begin();
   MIDI.begin(MIDI_CHANNEL_OMNI); // Initialize the Midi Library.
-  MIDI.setHandleControlChange(processCCmsg); // This command tells the MIDI Library
-  MIDI.setHandleProgramChange(processPCmsg); // This command tells the MIDI Library
+  //MIDI.setHandleControlChange(processCCmsg); // This command tells the MIDI Library
+  //MIDI.setHandleProgramChange(processPCmsg); // This command tells the MIDI Library
   
   // Initialize the button pins
   for (int i = 0; i < BUTTQTY; i++) {
@@ -67,9 +68,10 @@ void setup() {
   }
   
   //splash();
-  //ledTest();
+  ledTest();
   //delay(1000);
 
+  PATCH_STATE = read_default_patch();
   load_default_states();
   loadLayout();
   
@@ -236,20 +238,19 @@ void singlePress(uint8_t button) {
   //getFxShortName(virtual_button_index, sn);
   char ln[11];
   getFxLongName(virtual_button_index, ln);
+  uint8_t ccnum = getFxChannel(virtual_button_index);
   
   if(button_states[virtual_button_index]==false) {  // is inactive
     button_states[virtual_button_index]=true;
-    //MIDI.sendControlChange(ccs[virtual_button_index], 127, channel); // activate
     MIDI.sendControlChange(getFxChannel(virtual_button_index), 127, channel); // activate
     char buf[16];
-    sprintf(buf, "%s ON", ln);
+    sprintf(buf, "%s %d ON", ln, ccnum);
     setTemporaryTitle(buf);
   } else {                    // is active
     button_states[virtual_button_index]=false;
-    //MIDI.sendControlChange(ccs[virtual_button_index], 0, channel);
     MIDI.sendControlChange(getFxChannel(virtual_button_index), 0, channel);
     char buf[16];
-    sprintf(buf, "%s OFF", ln);
+    sprintf(buf, "%s %d OFF", ln, ccnum);
     setTemporaryTitle(buf);
   } // end if false
 
@@ -382,8 +383,7 @@ void patchUp(){
   sprintf (scr.title, "P%03d", PATCH_STATE);
   load_default_states();
   loadLayout();
-  MIDI.sendProgramChange (PATCH_STATE-1, channel); // counts from 0 that stands for the patch 1
-  delay(5);
+  updateDevice();
 }
 
 void patchDown() {
@@ -395,16 +395,21 @@ void patchDown() {
   sprintf (scr.title, "P%03d", PATCH_STATE);
   load_default_states();
   loadLayout();
-  MIDI.sendProgramChange (PATCH_STATE-1, channel); // counts from 0 that stands for the patch 1
-  delay(5);
+  updateDevice();
 }
 
 void updateDevice() {
   // send the patch number
   MIDI.sendProgramChange (PATCH_STATE-1, channel); // counts from 0 that stands for the patch 1
-
-  // TODO: foreach button
-  //          --> send the state
+  delay(8);
+  for(uint8_t i=0; i<24; i++) {
+      if(button_states[i]==false) {
+        MIDI.sendControlChange(getFxChannel(i), 0, channel);
+      } else {
+        MIDI.sendControlChange(getFxChannel(i), 127, channel);
+      }
+      delay(8);
+  }
 }
 
 void setRgbColor(uint8_t c[]) {
@@ -414,48 +419,7 @@ void setRgbColor(uint8_t c[]) {
   analogWrite(PIN_RGB_BLUE, c[2]/divider);
 }
 
-void ledTest() {
 
-  // RGB animation
-  int rgbWait=10000;
-  /*for(int i=0; i<256; i++){
-    analogWrite(PIN_RGB_RED, i);
-    delayMicroseconds(rgbWait);
-  }
-    for(int i=255; i>=0; i--){
-    analogWrite(PIN_RGB_RED, i);
-    delayMicroseconds(rgbWait);
-  }
-  for(int i=0; i<256; i++){
-    analogWrite(PIN_RGB_GREEN, i);
-    delayMicroseconds(rgbWait);
-  }
-    for(int i=255; i>=0; i--){
-    analogWrite(PIN_RGB_GREEN, i);
-    delayMicroseconds(rgbWait);
-  }
-  for(int i=0; i<256; i++){
-    analogWrite(PIN_RGB_BLUE, i);
-    delayMicroseconds(rgbWait);
-  }
-  for(int i=255; i>=0; i--){
-    analogWrite(PIN_RGB_BLUE, i);
-    delayMicroseconds(rgbWait);
-  }*/
-
-  for(int i=0; i<64; i++){
-    analogWrite(PIN_RGB_RED, i);
-    //analogWrite(PIN_RGB_GREEN, i);
-    //analogWrite(PIN_RGB_BLUE, i);
-    delayMicroseconds(rgbWait);
-  }
-  for(int i=64; i>=0; i--){
-    analogWrite(PIN_RGB_RED, i);
-    //analogWrite(PIN_RGB_GREEN, i);
-    //analogWrite(PIN_RGB_BLUE, i);
-    delayMicroseconds(rgbWait);
-  }
-} // end led test
 
 void setTemporaryTitle(char * tmpTitle) {
   // TODO draw frame
@@ -464,6 +428,21 @@ void setTemporaryTitle(char * tmpTitle) {
   strcpy(scr.title,tmpTitle);
   drawLayout(scr);
 }
+
+void ledTest() {
+  // RGB animation
+  //int rgbWait=500;
+  for(int i=0; i<64; i++){ // Red
+    analogWrite(PIN_RGB_RED, i);
+    //delayMicroseconds(rgbWait);
+    delay(10);
+  }
+  for(int i=64; i>=0; i--){
+    analogWrite(PIN_RGB_RED, i);
+    //delayMicroseconds(rgbWait);
+    delay(10);
+  }
+} // end led test
 
 /** ----------------------------------------------------------
  *          END UTILS
@@ -480,17 +459,19 @@ void(* reboot)(void) = 0;
 
 uint8_t checkButtons() {
   uint8_t btChoose=0;
+
   while(btChoose == 0) {
       
     for(uint8_t i=0; i<6; i++) {
       DEBOUNCER[i].update();
       if(DEBOUNCER[i].read()==LOW) { // button is pressed
         
-        // waits for release
+        // hook waiting for release
         while(DEBOUNCER[i].read()==LOW) {
           DEBOUNCER[i].update();
         }
-        btChoose = i+1;
+
+        btChoose = i+1; // button number
         return btChoose;
       }
     } // end for all buttons cycle
@@ -498,140 +479,180 @@ uint8_t checkButtons() {
   return 0;
 }
 
-uint8_t FROM_LAYOUT;
-uint8_t FROM_BUTTON;
-uint8_t TO_LAYOUT;
-uint8_t TO_BUTTON;
-
 void settings_menu() {
   EDIT_MODE=true;
 
   uint8_t m_index=0;
   char title[20] = "Settings";
-  char * m_options[20] = {"Swap Buttons","Save button states","Edit button","Set the boot patch","Calibrate exp pedal","Reset device"};
-  uint8_t m_option_len = 6;
+  char * m_options[20] = {"Save button states","Swap Buttons","Edit button","Set as boot patch","Reset device"};
+  uint8_t m_option_len = 5;
   uint8_t m_selected_entry=0;
   bool m_buttState[6]={1,1,1,0,1,1};
   uint8_t go_fw=0;
   
   go_fw = menu_navigation(m_index, title, m_options, m_option_len, m_selected_entry, m_buttState);
 
-  if(go_fw==1) { // choice swap
-    strcpy(title, "From layout");
-    char  * m_options[20] = {"Red", "Cyan", "Green", "Purple"};
-    m_option_len = 4;
-    go_fw = menu_navigation(m_index++, title, m_options, m_option_len, m_selected_entry, m_buttState);
-    if(go_fw>0) {  // choice FROM_BUTTON
-      FROM_LAYOUT=go_fw;
-      strcpy(title, "From button");
-      
-      char * m_options[20] = {"1", "2", "3", "4", "5", "6"};
-      
-      m_option_len = 6;
-      go_fw = menu_navigation(m_index++, title, m_options, m_option_len, m_selected_entry, m_buttState);
-
-      if(go_fw>0) {  // choose TO_LAYOUT
-        FROM_BUTTON=go_fw;
-        strcpy(title, "To layout");
-        char * m_options[20] = {"Red", "Cyan", "Green", "Purple"};
-        m_option_len = 4;
-        go_fw = menu_navigation(m_index++, title, m_options, m_option_len, m_selected_entry, m_buttState);
-        if(go_fw>0) {
-          TO_LAYOUT=go_fw;
-          strcpy(title, "To button");
-          char * m_options[20] = {"1", "2", "3", "4", "5", "6"};
-          m_option_len = 6;
-          go_fw = menu_navigation(m_index++, title, m_options, m_option_len, m_selected_entry, m_buttState);
-          if(go_fw>0) {  // choose TO_BUTTON
-            TO_BUTTON=go_fw;
-            
-            // SWAP BUTTONS
-            
-            uint8_t fromVButton = (FROM_BUTTON-1) + (6*(FROM_LAYOUT-1)); // from 0 to 23
-            uint8_t toVButton = (TO_BUTTON-1) + (6* (TO_LAYOUT-1)); // from 0 to 23
-
-            // metto temporaneamente TO in tmp
-            byte tmpChannel = getFxChannel(toVButton);
-            char tmpShortName[3];
-            getFxShortName(toVButton, tmpShortName);
-            char tmpLongName[10];
-            getFxLongName(toVButton, tmpLongName);
-            
-            // metto FROM in TO
-            byte fromChannel = getFxChannel(fromVButton);
-            char fromShortName[4];
-            getFxShortName(fromVButton, fromShortName);
-            char fromLongName[11];
-            getFxLongName(fromVButton, fromLongName);
-            
-            setFxChannel(toVButton, fromChannel);
-            writeFxShortName(toVButton, fromShortName);
-            setFxLongName(toVButton, fromLongName);
-
-            // metto tmp in FROM
-            setFxChannel(fromVButton, tmpChannel);
-            writeFxShortName(fromVButton, tmpShortName);
-            setFxLongName(fromVButton, tmpLongName);
-            
-            //load_default_states();
-            loadLayout();
-
-          } else {
-            return;
-          }
-        } else {
-          return;
-        }
-      } else {
-        return;
-      }
-    } else {
-      return;
-    }
-  } else if(go_fw==2) {
+  if(go_fw==1) { // save button states
     setTemporaryTitle("Save fx states");
     write_button_states();
-  } else if(go_fw==3) {
-    setTemporaryTitle("Not yet implemented");
-  } else if(go_fw==4) {
-    setTemporaryTitle("Not yet implemented");
-  } else if(go_fw==5) {
-    setTemporaryTitle("Not yet implemented");
-  } else if(go_fw==6) {
+
+  } else if(go_fw==2) { // swap
+            
+    uint8_t fromVButton = chooseButton("Move From");
+    if(!fromVButton) return;
+
+    uint8_t toVButton = chooseButton("Move To");
+    if(!toVButton) return;
+    
+    swapButtons(fromVButton, toVButton);
+    loadLayout();
+    
+    setTemporaryTitle("Swap done!");
+    
+  } else if(go_fw==3) { // Edit button
+    
+
+    uint8_t virtual_button = 0;
+    virtual_button = chooseButton("Button to edit");
+    
+    if(!virtual_button) return;
+
+    if(editButton(virtual_button)) {
+      setTemporaryTitle("Saved!");
+      loadLayout();
+    }
+
+  } else if(go_fw==4) { // Save patch
+    setTemporaryTitle("Saved!");
+    write_default_patch(PATCH_STATE);
+
+  } else if(go_fw==5) { // Reset
     setTemporaryTitle("Reset, wait...");
     clear_eeprom();
     write_default_fx();
     reboot();
-  } else {
-    return;
+
   }
-    
   
 }
 
+uint8_t chooseButton(char* title) { // return 1-24 or 0 as no choice
+  
+  bool m_buttState[6]={1,1,1,0,1,1};
+  
+  char  * m_options1[20] = {"Red", "Cyan", "Green", "Purple"};
+  uint8_t m_option_len = 4;
+  uint8_t fromLayout = menu_navigation(0, title, m_options1, m_option_len, 0, m_buttState);
+  if(fromLayout <=0) return 0;
 
+  //strcpy(title, "choose button");
+  char * m_options2[20] = {"1", "2", "3", "4", "5", "6"};
+  m_option_len = 6;
+  uint8_t fromButton = menu_navigation(0, title, m_options2, m_option_len, 0, m_buttState);
+  if(fromButton <=0) return 0;
+  
+  uint8_t virtual_button = fromButton + (6*(fromLayout-1)); // from 0 to 23
+
+  return virtual_button;
+}
+
+void swapButtons(uint8_t fromVButton, uint8_t toVButton) {  // 1 to 24
+  fromVButton--;
+  toVButton--;
+
+  // put TO into tmp
+  byte tmpChannel = getFxChannel(toVButton);
+  char tmpShortName[3];
+  getFxShortName(toVButton, tmpShortName);
+  char tmpLongName[10];
+  getFxLongName(toVButton, tmpLongName);
+  
+  // metto FROM in TO
+  byte fromChannel = getFxChannel(fromVButton);
+  char fromShortName[4];
+  getFxShortName(fromVButton, fromShortName);
+  char fromLongName[11];
+  getFxLongName(fromVButton, fromLongName);
+  
+  setFxChannel(toVButton, fromChannel);
+  writeFxShortName(toVButton, fromShortName);
+  setFxLongName(toVButton, fromLongName);
+
+  // metto tmp in FROM
+  setFxChannel(fromVButton, tmpChannel);
+  writeFxShortName(fromVButton, tmpShortName);
+  setFxLongName(fromVButton, tmpLongName);
+  
+}
+
+bool editButton(uint8_t virtual_button) { // 1 to 24
+  char fx[15];
+  getFx(virtual_button-1, fx);
+
+  if(editButton_navigation(fx)) {
+    writeFx(virtual_button-1, fx);
+    return true;
+  }
+  return false;
+}
+
+uint8_t editButton_navigation(char fx[15]) {
+  uint8_t selectedIndex=0;
+  
+  while(true) {
+    drawButtonEdit(selectedIndex, fx);
+
+    uint8_t butt_choice = checkButtons();  // waits for a choose
+
+    if(butt_choice==5) {       // go up
+      if(fx[selectedIndex] < 126)
+        fx[selectedIndex]+=1;
+      else fx[selectedIndex] = 32;
+
+    }else if(butt_choice==2) { // go down
+      if(fx[selectedIndex] > 32)
+        fx[selectedIndex]-=1;
+      else fx[selectedIndex] = 126;
+      
+    } else if(butt_choice==4) { // go left
+      if(selectedIndex>0) {
+        selectedIndex--;
+      }
+    } else if(butt_choice==6) { // go right
+      if(selectedIndex<13) {
+        selectedIndex++;
+      }
+    } else if(butt_choice==1) { // return and save changes
+      return true;
+    } else if(butt_choice==3) { // return and discard changes
+      return false;
+    }
+
+  }
+  
+  return 0;
+}
 
 // gestisce lo spostamento interno del menu, ritorna 0 o 1 per tornare indietro o andare avanti
 uint8_t menu_navigation(uint8_t m_index, char title[], char * m_options[], uint8_t m_option_len, uint8_t m_selected_entry, bool m_buttState[]) {
-  
-  while(true) {
+  uint8_t butt_choice = 0;
+  while(butt_choice==0 || butt_choice==5 || butt_choice==2) {
     
     drawMenu(title, m_options, m_option_len, m_selected_entry, m_buttState);
     
-    uint8_t butt_choice = checkButtons();  // waits for a choose
-
+    butt_choice = 0;
+    butt_choice = checkButtons();  // waits for a choose
     
     if(butt_choice==5) {       // go up
-      
       m_selected_entry = m_selected_entry<1 ? m_option_len-1 : m_selected_entry-1;
+
     }else if(butt_choice==2) { // go down
-      
       m_selected_entry = m_selected_entry>=m_option_len-1 ? 0 : m_selected_entry+1;
+
     } else if(butt_choice==1 || butt_choice==6) {
-      return m_selected_entry+1;
-    } else{
-      break;
+      return m_selected_entry+1;  // confirm
     }
+
   }
   
   return 0;

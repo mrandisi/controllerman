@@ -8,7 +8,7 @@
 U8G2_ST7920_128X64_1_HW_SPI u8g2(U8G2_R0, /* CS=*/ 10, /* reset=*/ 8);
 
 struct screenLayout {
-  char title[24];
+  char title[20];
   char fxLabel[6][4];
   char fxDescr[6][11];
   bool buttonState[6];
@@ -169,7 +169,7 @@ uint8_t drawMenu(char title[], char * options[], uint8_t option_len, uint8_t sel
     u8g2.setFontDirection(0);
     
     // Navigation indicators
-    u8g2.setFont(u8g2_font_twelvedings_t_all );
+    //u8g2.setFont(u8g2_font_twelvedings_t_all );
 
     //bool buttState[6]={1,1,1,0,1,1};
     menu_nav_buttons(buttState);
@@ -198,40 +198,71 @@ uint8_t drawMenu(char title[], char * options[], uint8_t option_len, uint8_t sel
   
 }
 
+void drawButtonEdit(uint8_t selectedIndex, byte fx[15]) {
+  char title[20];
+  uint8_t xPos = 0;
+  uint8_t yPos = 40;
 
-
-/*uint8_t buttonChooserMenu(){
-  uint8_t xPos;
-  uint8_t yPos;
-  uint8_t strLen;
-  uint8_t maxW=0;
+  bool buttState[6]={1,1,1,1,1,1};
+  if(selectedIndex==0) {
+    buttState[3] = 0;
+  } else if(selectedIndex == 13) {
+    buttState[5] = 0;
+  }
   
   u8g2.firstPage();
   do {
     u8g2.setFontDirection(0);
-
-    menu_nav_buttons();
-
-    // Menu
-    u8g2.setFont(u8g2_font_trixel_square_tf);
-
-    u8g2.drawStr(10, 16, "From view / button");
     
-    for(uint8_t i=0; i<4; i++) {
-      yPos = 24+(7*i);
-      char buf[8];
-      strcpy_P(buf, (char*)pgm_read_word(&( layoutName[i] )));
-      u8g2.drawStr(20, yPos, buf);
+    // Navigation indicators
+    menu_nav_buttons(buttState);
+
+    if(selectedIndex < 1) {
+      strcpy(title, "Control Change N.");
+      //u8g2.drawFrame(0, 32, 26, 10);
+    } else if(selectedIndex < 4) {
+      strcpy(title, "Short Name");
+      u8g2.drawFrame(31, 32, 23, 10);
+    } else {
+      strcpy(title, "Long Name");
+      u8g2.drawFrame(56, 32, 72, 10);
+    }
+
+    u8g2.setFont(u8g2_font_trixel_square_tf);
+    u8g2.drawStr(1, 25, title);
+    u8g2.setFont(u8g2_font_chroma48medium8_8r);
+    
+    for(uint8_t i=0; i<14; i++) {
+      
+      xPos = 1 + i*7;  // space + i * char width
+      if(i>0) {
+        xPos+=24; // space after controlChange
+      }
+      if(i>3) {
+        xPos+=4; // space after shortName (+cc)
+      }
+
+      char c[2];
+      if(i==0) {
+        sprintf(c, "%d", fx[i]);  // is ccnum
+      } else {
+        
+        if(fx[i] > 31 && fx[i] < 127) {
+          c[0] = fx[i];
+        }
+        else c[0] = 'a';//32;
+        c[1] = '\0';
+      }
+      
+      u8g2.drawStr(xPos, yPos, c);
+      
+      if(i==selectedIndex) { // selected
+        u8g2.drawBox(xPos, yPos-7, u8g2.getStrWidth(c)-1, 8);
+      }
     }
     
-    
-
-    //u8g2.drawFrame(21, 7, maxW+18, 50);
-    
   } while ( u8g2.nextPage() );
-  
-}*/
-
+}
 
 void init_display() {
   u8g2.begin();

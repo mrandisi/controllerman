@@ -1,0 +1,6 @@
+{
+    "port": "COM6",
+    "configuration": "cpu=atmega328",
+    "board": "arduino:avr:diecimila",
+    "sketch": "controllerman.ino"
+}
