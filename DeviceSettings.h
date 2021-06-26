@@ -28,6 +28,7 @@ const char defFx_2[] PROGMEM = "AWHAutoWah";
 const char defFx_3[] PROGMEM = "ENVEnvpFilter";
 const char defFx_4[] PROGMEM = "CMPCompressor";
 const char defFx_5[] PROGMEM = "BSTBoost";
+//const char defFx_5[] PROGMEM = "TAPTempo";
 const char defFx_6[] PROGMEM = "OVDOverdrive";
 const char defFx_7[] PROGMEM = "FUZFuzz";
 const char defFx_8[] PROGMEM = "DSTDistorsion";
@@ -46,7 +47,6 @@ const char defFx_20[] PROGMEM = "DLYDelay";
 const char defFx_21[] PROGMEM = "SBKSlapback";
 const char defFx_22[] PROGMEM = "ECOEcho";
 const char defFx_23[] PROGMEM = "RVBReverb";
-
 const char* const defFx[] PROGMEM = {
   defFx_0,defFx_1,defFx_2,defFx_3,defFx_4,
   defFx_5,defFx_6,defFx_7,defFx_8,defFx_9,
@@ -55,13 +55,15 @@ const char* const defFx[] PROGMEM = {
   defFx_20,defFx_21,defFx_22,defFx_23
 };
 
+
 const char layoutName_0[] PROGMEM = "Red";
 const char layoutName_1[] PROGMEM = "Cyan";
 const char layoutName_2[] PROGMEM = "Green";
 const char layoutName_3[] PROGMEM = "Purple";
 const char* const layoutName[] PROGMEM = {layoutName_0,layoutName_1,layoutName_2,layoutName_3};
 
- byte boolArrayToByte(bool boolArray[8]) {
+
+byte boolArrayToByte(bool boolArray[8]) {
   byte bits;
   
   for(byte i=0; i<8; i++) {
@@ -77,10 +79,10 @@ void byteToBoolArray(byte eightBit, bool b[]) {
   }
 }
 
-void load_default_states() {
+void load_default_states(uint8_t patch) {
   bool boolArr[3][8];
   
-  int first_location = eeprom_states_shift + (PATCH_STATE-1) * 3;
+  int first_location = eeprom_states_shift + (patch-1) * 3;
   
   byte newByte;
 
@@ -104,10 +106,10 @@ void load_default_states() {
   } // end for ij-k
 }
 
-void write_button_states() {
+void write_default_states(uint8_t patch) {
   bool boolArr[3][8];
   
-  int first_location = eeprom_states_shift + (PATCH_STATE-1) * 3;
+  int first_location = eeprom_states_shift + (patch-1) * 3;
   
   uint8_t k=0;
   for(uint8_t i=0; i<3; i++) {
@@ -212,7 +214,10 @@ void setFxLongName(uint8_t virtualButton, char fx[10]) { // button from 0 to 23
 }
 
 uint8_t read_default_patch() {
-  return EEPROM.read(eeprom_patch_default_state);
+  uint8_t patch = EEPROM.read(eeprom_patch_default_state);
+  if(patch > 0)
+    return patch;
+  return 1;
 }
 
 void write_default_patch(uint8_t patch_num) {

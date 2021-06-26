@@ -15,16 +15,17 @@ struct screenLayout {
 } scr;
 
 
-void splash(){
+void splash() {
   u8g2.firstPage();
   do {
-    u8g2.setFont(u8g2_font_sirclivethebold_tr);
-    u8g2.drawStr(9,20,"midi");
-    u8g2.setFont(u8g2_font_tenfatguys_tf);
+    
+    u8g2.setFont(u8g2_font_lastapprenticethin_tr);
+    u8g2.drawStr(10,16,"midi");
+    u8g2.setFont(u8g2_font_tenfatguys_t_all);
     u8g2.drawStr(10,31,"CONTROLLER");
     u8g2.drawStr(60,43,"MAN");
-    u8g2.setFont(u8g2_font_sirclive_tr);
-    u8g2.drawStr(30,56,"Stomp 6");
+    u8g2.setFont(u8g2_font_tenthinnerguys_t_all);
+    u8g2.drawStr(45,58,"Stomp 6");
   } while ( u8g2.nextPage() );
 }
 

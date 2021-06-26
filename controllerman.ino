@@ -8,7 +8,6 @@
 #include <MIDI.h>
 #include "DeviceSettings.h"
 #include "Display.h"
-#include "Utils.h"
 
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial, MIDI); //Serial1
 //MIDI_CREATE_DEFAULT_INSTANCE();
@@ -36,8 +35,12 @@ const uint8_t LAYOUT_COLOR[4][3] = { {255,0,0}, {0,128,255}, {0,255,0}, {255,0,2
 //const char * LAYOUT_NAME[4] = {"Red", "Cyan", "Green", "Purple"};
 
 bool TITLE_TIMEOUT_ENABLED=false;
-int TITLE_START_TIME = 0;
+unsigned long TITLE_START_TIME = 0;
 bool EDIT_MODE=false;
+/*unsigned long TAP_TIME=0;
+unsigned long TAP_INTERVAL=0;
+unsigned long LAST_TAP_BLINK=millis();*/
+unsigned long LAZY_TIME=millis();
 
 // Instantiate the Bounce objects
 Bounce * DEBOUNCER = new Bounce[BUTTQTY];   // 6 debouncing objects
@@ -67,12 +70,14 @@ void setup() {
     DEBOUNCER[i].interval(bounceInterval);
   }
   
-  //splash();
+  // boot animation
+  splash();
   ledTest();
-  //delay(1000);
+  delay(500);
 
   PATCH_STATE = read_default_patch();
-  load_default_states();
+  sprintf (scr.title, "P%03d", PATCH_STATE);
+  load_default_states(PATCH_STATE);
   loadLayout();
   
   // Synchronize all data at the beginning
@@ -93,23 +98,35 @@ void loop() {
     }
   } // end for all buttons cycle
   
-  // title timeout restore
-  if(TITLE_TIMEOUT_ENABLED) {
-    int nowTime = millis();
-    if(nowTime-TITLE_START_TIME > 1000) {
-      sprintf (scr.title, "P%03d", PATCH_STATE);
+  // Lazy Ops.
+  if(LAZY_TIME-millis()>10) { // every 10ms
+    LAZY_TIME=millis();
+
+    
+    //int msInterval = TAP_INTERVAL*100/6;
+    /*if(TAP_INTERVAL>=100 && millis()-LAST_TAP_BLINK > TAP_INTERVAL) {
+      tapBlink();
+      LAST_TAP_BLINK=millis();
+    }*/
+
+    // opens the menu
+    if(EDIT_MODE) {
+      settings_menu();
+      EDIT_MODE=false;
       drawLayout(scr);
-      TITLE_TIMEOUT_ENABLED=false;
     }
+
+    // title timeout restore
+    if(TITLE_TIMEOUT_ENABLED) {
+      unsigned long nowTime = millis();
+      if(nowTime-TITLE_START_TIME > 1000) {
+        sprintf (scr.title, "P%03d", PATCH_STATE);
+        drawLayout(scr);
+        TITLE_TIMEOUT_ENABLED=false;
+      }
+    }
+
   }
-  
-  if(EDIT_MODE) {
-    settings_menu();
-    EDIT_MODE=false;
-    drawLayout(scr);
-  }
-  
-  // TODO: Lazy Ops.
   
 } // end loop()
 
@@ -234,12 +251,30 @@ void singlePress(uint8_t button) {
   drawLayout(scr);
   
   uint8_t virtual_button_index = (6 * CURRENT_LAYOUT) + (button-1);
-  //char sn[4];
-  //getFxShortName(virtual_button_index, sn);
+  char sn[4];
+  getFxShortName(virtual_button_index, sn);
   char ln[11];
   getFxLongName(virtual_button_index, ln);
   uint8_t ccnum = getFxChannel(virtual_button_index);
-  
+
+  // hook special function
+  /*if(!strcmp(sn, "TAP")) {
+    
+    if(TAP_TIME==0) {
+      TAP_TIME=millis();
+    } else {
+      TAP_INTERVAL = millis() - TAP_TIME; // *60 sec /1000ms
+      
+      //if(tap > 60 && tap < 250) {
+        char buf[16];
+        sprintf(buf, "TAP %dms", (TAP_INTERVAL*6)/100);
+        setTemporaryTitle(buf);
+      //}
+      TAP_TIME=millis();
+    }
+    tapBlink();
+  } 
+  else */
   if(button_states[virtual_button_index]==false) {  // is inactive
     button_states[virtual_button_index]=true;
     MIDI.sendControlChange(getFxChannel(virtual_button_index), 127, channel); // activate
@@ -381,7 +416,7 @@ void patchUp(){
     PATCH_STATE=1;  // loops to the first patch
   }
   sprintf (scr.title, "P%03d", PATCH_STATE);
-  load_default_states();
+  load_default_states(PATCH_STATE);
   loadLayout();
   updateDevice();
 }
@@ -393,7 +428,7 @@ void patchDown() {
     PATCH_STATE=125;  // loops to the last patch
   }
   sprintf (scr.title, "P%03d", PATCH_STATE);
-  load_default_states();
+  load_default_states(PATCH_STATE);
   loadLayout();
   updateDevice();
 }
@@ -443,6 +478,14 @@ void ledTest() {
     delay(10);
   }
 } // end led test
+
+void tapBlink() {
+  analogWrite(PIN_RGB_RED, 255);
+  analogWrite(PIN_RGB_GREEN, 255);
+  analogWrite(PIN_RGB_BLUE, 255);
+  delay(3);
+  setRgbColor(LAYOUT_COLOR[CURRENT_LAYOUT]);
+} // end led Blink
 
 /** ----------------------------------------------------------
  *          END UTILS
@@ -494,7 +537,7 @@ void settings_menu() {
 
   if(go_fw==1) { // save button states
     setTemporaryTitle("Save fx states");
-    write_button_states();
+    write_default_states(PATCH_STATE);
 
   } else if(go_fw==2) { // swap
             
@@ -505,6 +548,7 @@ void settings_menu() {
     if(!toVButton) return;
     
     swapButtons(fromVButton, toVButton);
+    swapStates(fromVButton, toVButton);
     loadLayout();
     
     setTemporaryTitle("Swap done!");
@@ -556,6 +600,24 @@ uint8_t chooseButton(char* title) { // return 1-24 or 0 as no choice
   return virtual_button;
 }
 
+void swapStates(uint8_t fromVButton, uint8_t toVButton) {  // 1 to 24
+  fromVButton--;
+  toVButton--;
+
+  for(uint8_t i=1; i<=125; i++) {
+    load_default_states(i);
+
+    if(button_states[fromVButton] != button_states[toVButton]) {  // if different swap and save
+      bool tmp = button_states[fromVButton];
+      button_states[fromVButton] = button_states[toVButton];
+      button_states[toVButton] = tmp;
+
+      write_default_states(i);
+    }
+  }
+  load_default_states(PATCH_STATE);
+}
+
 void swapButtons(uint8_t fromVButton, uint8_t toVButton) {  // 1 to 24
   fromVButton--;
   toVButton--;
@@ -583,6 +645,7 @@ void swapButtons(uint8_t fromVButton, uint8_t toVButton) {  // 1 to 24
   writeFxShortName(fromVButton, tmpShortName);
   setFxLongName(fromVButton, tmpLongName);
   
+
 }
 
 bool editButton(uint8_t virtual_button) { // 1 to 24
