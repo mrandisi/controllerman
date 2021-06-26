@@ -37,10 +37,8 @@ const uint8_t LAYOUT_COLOR[4][3] = { {255,0,0}, {0,128,255}, {0,255,0}, {255,0,2
 bool TITLE_TIMEOUT_ENABLED=false;
 unsigned long TITLE_START_TIME = 0;
 bool EDIT_MODE=false;
-/*unsigned long TAP_TIME=0;
-unsigned long TAP_INTERVAL=0;
-unsigned long LAST_TAP_BLINK=millis();*/
 unsigned long LAZY_TIME=millis();
+uint8_t VERY_SLOW_COUNTER=0;
 
 // Instantiate the Bounce objects
 Bounce * DEBOUNCER = new Bounce[BUTTQTY];   // 6 debouncing objects
@@ -101,31 +99,29 @@ void loop() {
   // Lazy Ops.
   if(LAZY_TIME-millis()>10) { // every 10ms
     LAZY_TIME=millis();
-
     
-    //int msInterval = TAP_INTERVAL*100/6;
-    /*if(TAP_INTERVAL>=100 && millis()-LAST_TAP_BLINK > TAP_INTERVAL) {
-      tapBlink();
-      LAST_TAP_BLINK=millis();
-    }*/
+    VERY_SLOW_COUNTER++;
+    if(VERY_SLOW_COUNTER > 100) { // 10*100=one second
+      VERY_SLOW_COUNTER=0;
 
-    // opens the menu
-    if(EDIT_MODE) {
-      settings_menu();
-      EDIT_MODE=false;
-      drawLayout(scr);
-    }
-
-    // title timeout restore
-    if(TITLE_TIMEOUT_ENABLED) {
-      unsigned long nowTime = millis();
-      if(nowTime-TITLE_START_TIME > 1000) {
-        sprintf (scr.title, "P%03d", PATCH_STATE);
+      // opens the menu
+      if(EDIT_MODE) {
+        settings_menu();
+        EDIT_MODE=false;
         drawLayout(scr);
-        TITLE_TIMEOUT_ENABLED=false;
       }
+  
+      // title timeout restore
+      if(TITLE_TIMEOUT_ENABLED) {
+        unsigned long nowTime = millis();
+        if(nowTime-TITLE_START_TIME > 1000) {
+          sprintf (scr.title, "P%03d", PATCH_STATE);
+          drawLayout(scr);
+          TITLE_TIMEOUT_ENABLED=false;
+        }
+      }
+      
     }
-
   }
   
 } // end loop()
@@ -256,25 +252,7 @@ void singlePress(uint8_t button) {
   char ln[11];
   getFxLongName(virtual_button_index, ln);
   uint8_t ccnum = getFxChannel(virtual_button_index);
-
-  // hook special function
-  /*if(!strcmp(sn, "TAP")) {
-    
-    if(TAP_TIME==0) {
-      TAP_TIME=millis();
-    } else {
-      TAP_INTERVAL = millis() - TAP_TIME; // *60 sec /1000ms
-      
-      //if(tap > 60 && tap < 250) {
-        char buf[16];
-        sprintf(buf, "TAP %dms", (TAP_INTERVAL*6)/100);
-        setTemporaryTitle(buf);
-      //}
-      TAP_TIME=millis();
-    }
-    tapBlink();
-  } 
-  else */
+  
   if(button_states[virtual_button_index]==false) {  // is inactive
     button_states[virtual_button_index]=true;
     MIDI.sendControlChange(getFxChannel(virtual_button_index), 127, channel); // activate
@@ -288,15 +266,13 @@ void singlePress(uint8_t button) {
     sprintf(buf, "%s %d OFF", ln, ccnum);
     setTemporaryTitle(buf);
   } // end if false
-
-  // TODO: synchronize the state with any other occourcences of the same effect
-
+  
   loadLayout();
 }
 
 bool singlePress_hold(uint8_t button) {
   //bool break_flag = LAYOUT->singlePress_hold(button);
-  return false;//break_flag;
+  return false; //break_flag;
 }
 
 void doublePress(uint8_t button1, uint8_t button2) {
@@ -338,11 +314,11 @@ bool doublePress_hold(uint8_t button1, uint8_t button2) {
     return true;
   } else if(button1==5 && button2==6) {  // combination reserved to patch up/down
     patchUp();
-    //delay(10);
+    delay(50);
     return false;
   } else if(button1==2 && button2==3) {
     patchDown();
-    //delay(10);
+    delay(50);
     return false;
   }
   
@@ -438,10 +414,12 @@ void patchDown() {
 }
 
 void jumpPatchUp(){
-  if(PATCH_STATE < 115) { // 125 is the last patch, 126 and 127 are not used.
-    PATCH_STATE+=10;
+  if(PATCH_STATE > 120) { // 125 is the last patch, 126 and 127 are not used.
+    PATCH_STATE-=120;  // loops to the first patch
   } else {
-    PATCH_STATE-=113;  // loops to the first patch
+    PATCH_STATE+=10;
+    if(PATCH_STATE>125)
+      PATCH_STATE-=120;
   }
   sprintf (scr.title, "P%03d", PATCH_STATE);
   load_default_states(PATCH_STATE);
@@ -453,8 +431,10 @@ void jumpPatchDown() {
   if(PATCH_STATE >= 11) {
     PATCH_STATE-=10;
   } else {
-    PATCH_STATE+=123;  // loops to the last patch
+    PATCH_STATE+=120;  // loops to the last patch
   }
+  if(PATCH_STATE>125)
+    PATCH_STATE-=10;
   sprintf (scr.title, "P%03d", PATCH_STATE);
   load_default_states(PATCH_STATE);
   loadLayout();

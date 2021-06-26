@@ -199,7 +199,7 @@ uint8_t drawMenu(char title[], char * options[], uint8_t option_len, uint8_t sel
   
 }
 
-void drawButtonEdit(uint8_t selectedIndex, byte fx[15]) {
+void drawButtonEdit(uint8_t selectedIndex, char fx[15]) {
   char title[20];
   uint8_t xPos = 0;
   uint8_t yPos = 40;
