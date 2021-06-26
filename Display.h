@@ -19,8 +19,8 @@ void splash() {
   u8g2.firstPage();
   do {
     
-    u8g2.setFont(u8g2_font_lastapprenticethin_tr);
-    u8g2.drawStr(10,16,"midi");
+    u8g2.setFont(u8g2_font_trixel_square_tf);
+    u8g2.drawStr(10,19,"midi");
     u8g2.setFont(u8g2_font_tenfatguys_t_all);
     u8g2.drawStr(10,31,"CONTROLLER");
     u8g2.drawStr(60,43,"MAN");
@@ -45,11 +45,6 @@ void drawLayout(screenLayout scr){
     if(strLen>60) {
        // thin font
        u8g2.setFont(u8g2_font_tenthinnerguys_t_all);
-       strLen = u8g2.getStrWidth(scr.title);
-    }
-    else if(strLen>128) {
-       // thin font
-       u8g2.setFont(u8g2_font_lastapprenticethin_tr);
        strLen = u8g2.getStrWidth(scr.title);
     }
     
@@ -199,7 +194,7 @@ uint8_t drawMenu(char title[], char * options[], uint8_t option_len, uint8_t sel
   
 }
 
-void drawButtonEdit(uint8_t selectedIndex, char fx[15]) {
+void drawButtonEdit(uint8_t selectedIndex, byte fx[15]) {
   char title[20];
   uint8_t xPos = 0;
   uint8_t yPos = 40;

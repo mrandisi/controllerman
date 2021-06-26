@@ -320,6 +320,14 @@ bool doublePress_hold(uint8_t button1, uint8_t button2) {
     patchDown();
     delay(50);
     return false;
+  } else if(button1==4 && button2==5) {  // reserved to jump patch up/down
+    jumpPatchUp();
+    delay(50);
+    return false;
+  } else if(button1==1 && button2==2) {
+    jumpPatchDown();
+    delay(50);
+    return false;
   }
   
   return true;//break_flag, true waits for button release;
