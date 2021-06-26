@@ -317,6 +317,10 @@ void doublePress(uint8_t button1, uint8_t button2) {
     patchUp();
   } else if(button1==2 && button2==3) {
     patchDown();
+  } else if(button1==4 && button2==5) {  // jump patch up/down
+    jumpPatchUp();
+  } else if(button1==1 && button2==2) {
+    jumpPatchDown();
   }
   
 }
@@ -329,17 +333,17 @@ bool doublePress_hold(uint8_t button1, uint8_t button2) {
     button2 = temp;
   }
   
-  if(button1==3 && button2==6) {  // combination reserved to scroll the layout forward
-    scroll_next_layout();
-    delay(100);
-    return false;
-  } else if(button1==1 && button2==4) {  // combination reserved to scroll the layout forward
-    scroll_prev_layout();
-    delay(100);
-    return false;
-  } else if(button1==2 && button2==5) {
+  if(button1==2 && button2==5) {
     EDIT_MODE=true;
     return true;
+  } else if(button1==5 && button2==6) {  // combination reserved to patch up/down
+    patchUp();
+    //delay(10);
+    return false;
+  } else if(button1==2 && button2==3) {
+    patchDown();
+    //delay(10);
+    return false;
   }
   
   return true;//break_flag, true waits for button release;
@@ -426,6 +430,30 @@ void patchDown() {
     PATCH_STATE--;
   } else {
     PATCH_STATE=125;  // loops to the last patch
+  }
+  sprintf (scr.title, "P%03d", PATCH_STATE);
+  load_default_states(PATCH_STATE);
+  loadLayout();
+  updateDevice();
+}
+
+void jumpPatchUp(){
+  if(PATCH_STATE < 115) { // 125 is the last patch, 126 and 127 are not used.
+    PATCH_STATE+=10;
+  } else {
+    PATCH_STATE-=113;  // loops to the first patch
+  }
+  sprintf (scr.title, "P%03d", PATCH_STATE);
+  load_default_states(PATCH_STATE);
+  loadLayout();
+  updateDevice();
+}
+
+void jumpPatchDown() {
+  if(PATCH_STATE >= 11) {
+    PATCH_STATE-=10;
+  } else {
+    PATCH_STATE+=123;  // loops to the last patch
   }
   sprintf (scr.title, "P%03d", PATCH_STATE);
   load_default_states(PATCH_STATE);
