@@ -242,37 +242,22 @@ void manageAction(uint8_t i) {
 } // end manage action
 
 void singlePress(uint8_t button) {
-
-  scr.buttonState[button-1]=!scr.buttonState[button-1];
-  drawLayout(scr);
-  
   uint8_t virtual_button_index = (6 * CURRENT_LAYOUT) + (button-1);
-  char sn[4];
-  getFxShortName(virtual_button_index, sn);
-  char ln[11];
-  getFxLongName(virtual_button_index, ln);
-  uint8_t ccnum = getFxChannel(virtual_button_index);
+
+  toggleButton(virtual_button_index);
   
-  if(button_states[virtual_button_index]==false) {  // is inactive
-    button_states[virtual_button_index]=true;
-    MIDI.sendControlChange(getFxChannel(virtual_button_index), 127, channel); // activate
-    char buf[16];
-    sprintf(buf, "%s %d ON", ln, ccnum);
-    setTemporaryTitle(buf);
-  } else {                    // is active
-    button_states[virtual_button_index]=false;
-    MIDI.sendControlChange(getFxChannel(virtual_button_index), 0, channel);
-    char buf[16];
-    sprintf(buf, "%s %d OFF", ln, ccnum);
-    setTemporaryTitle(buf);
-  } // end if false
-  
-  loadLayout();
+  //loadLayout();
+  //drawLayout(scr);
 }
 
 bool singlePress_hold(uint8_t button) {
-  //bool break_flag = LAYOUT->singlePress_hold(button);
-  return false; //break_flag;
+  
+  uint8_t virtual_button_index = button + (6*(CURRENT_LAYOUT)) - 1; // from 0 to 23
+  uint8_t vbutton_link = getFxLongPressLink(virtual_button_index);
+
+  toggleButton(vbutton_link-1);
+  
+  return true; //break_flag;
 }
 
 void doublePress(uint8_t button1, uint8_t button2) {
@@ -342,7 +327,29 @@ bool doublePress_hold(uint8_t button1, uint8_t button2) {
 /** ----------------------------------------------------------
  *          UTILS
  * ----------------------------------------------------------*/
- 
+
+void toggleButton(uint8_t virtual_button) {
+  char ln[11];
+  getFxLongName(virtual_button, ln);
+  uint8_t ccnum = getFxCCnum(virtual_button);
+  
+  if(button_states[virtual_button]==false) {  // is inactive
+    button_states[virtual_button]=true;
+    MIDI.sendControlChange(getFxCCnum(virtual_button), 127, ccnum); // activate
+    char buf[16];
+    sprintf(buf, "%s %d ON", ln, ccnum);
+    setTemporaryTitle(buf);
+  } else {                    // is active
+    button_states[virtual_button]=false;
+    MIDI.sendControlChange(getFxCCnum(virtual_button), 0, channel);
+    char buf[16];
+    sprintf(buf, "%s %d OFF", ln, ccnum);
+    setTemporaryTitle(buf);
+  } // end if false
+  
+  loadLayout();
+}
+
 void scroll_next_layout() {
   if(CURRENT_LAYOUT < 3) {
     CURRENT_LAYOUT++;
@@ -455,9 +462,9 @@ void updateDevice() {
   delay(8);
   for(uint8_t i=0; i<24; i++) {
       if(button_states[i]==false) {
-        MIDI.sendControlChange(getFxChannel(i), 0, channel);
+        MIDI.sendControlChange(getFxCCnum(i), 0, channel);
       } else {
-        MIDI.sendControlChange(getFxChannel(i), 127, channel);
+        MIDI.sendControlChange(getFxCCnum(i), 127, channel);
       }
       delay(8);
   }
@@ -611,9 +618,9 @@ uint8_t chooseButton(char* title) { // return 1-24 or 0 as no choice
   uint8_t fromButton = menu_navigation(0, title, m_options2, m_option_len, 0, m_buttState);
   if(fromButton <=0) return 0;
   
-  uint8_t virtual_button = fromButton + (6*(fromLayout-1)); // from 0 to 23
+  uint8_t virtual_button_index = fromButton + (6*(fromLayout-1)); // from 0 to 23
 
-  return virtual_button;
+  return virtual_button_index;
 }
 
 void swapStates(uint8_t fromVButton, uint8_t toVButton) {  // 1 to 24
@@ -639,14 +646,14 @@ void swapButtons(uint8_t fromVButton, uint8_t toVButton) {  // 1 to 24
   toVButton--;
 
   // put TO into tmp
-  byte tmpChannel = getFxChannel(toVButton);
+  byte tmpChannel = getFxCCnum(toVButton);
   char tmpShortName[3];
   getFxShortName(toVButton, tmpShortName);
   char tmpLongName[10];
   getFxLongName(toVButton, tmpLongName);
   
   // metto FROM in TO
-  byte fromChannel = getFxChannel(fromVButton);
+  byte fromChannel = getFxCCnum(fromVButton);
   char fromShortName[4];
   getFxShortName(fromVButton, fromShortName);
   char fromLongName[11];
@@ -665,17 +672,17 @@ void swapButtons(uint8_t fromVButton, uint8_t toVButton) {  // 1 to 24
 }
 
 bool editButton(uint8_t virtual_button) { // 1 to 24
-  char fx[15];
+  char fx[17];
   getFx(virtual_button-1, fx);
 
-  if(editButton_navigation(fx)) {
-    writeFx(virtual_button-1, fx);
-    return true;
-  }
-  return false;
-}
+//  if(editButton_navigation(fx)) {
+//    writeFx(virtual_button-1, fx);
+//    return true;
+//  }
+//  return false;
+//}
 
-uint8_t editButton_navigation(char fx[15]) {
+//uint8_t editButton_navigation(char fx[17]) {
   uint8_t selectedIndex=0;
   
   while(true) {
@@ -698,10 +705,11 @@ uint8_t editButton_navigation(char fx[15]) {
         selectedIndex--;
       }
     } else if(butt_choice==6) { // go right
-      if(selectedIndex<13) {
+      if(selectedIndex<15) {
         selectedIndex++;
       }
     } else if(butt_choice==1) { // return and save changes
+      writeFx(virtual_button-1, fx);
       return true;
     } else if(butt_choice==3) { // return and discard changes
       return false;

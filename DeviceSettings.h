@@ -21,14 +21,12 @@ namespace settings
   
 } // end namespace setings
 
-
 const char defFx_0[] PROGMEM = "EQZEqualizer";
 const char defFx_1[] PROGMEM = "WAHPedal";
 const char defFx_2[] PROGMEM = "AWHAutoWah";
 const char defFx_3[] PROGMEM = "ENVEnvpFilter";
 const char defFx_4[] PROGMEM = "CMPCompressor";
 const char defFx_5[] PROGMEM = "BSTBoost";
-//const char defFx_5[] PROGMEM = "TAPTempo";
 const char defFx_6[] PROGMEM = "OVDOverdrive";
 const char defFx_7[] PROGMEM = "FUZFuzz";
 const char defFx_8[] PROGMEM = "DSTDistorsion";
@@ -143,73 +141,82 @@ void write_default_fx() {
     strcpy_P(fxName, (char*)pgm_read_word(&( defFx[i] ))); // get the couple short+long_name
     //fx[0]=i+1;  // consecutive cc numbers from 1 to 24
 
-    int charLocation = eeprom_fx_shift + (i * 14);  // +0 first location
+    int charLocation = eeprom_fx_shift + (i * 16);  // +0 first location
     EEPROM.write(charLocation, i + 1);  // write consecutive cc numbers from 1 to 24
+    EEPROM.write(charLocation+1, i + 1);  // write consecutive cc numbers from 1 to 24
+    EEPROM.write(charLocation+2, i + 1);  // write consecutive cc numbers from 1 to 24
     
-    for(uint8_t j=1; j<14; j++) {
+    for(uint8_t j=3; j<16; j++) {
       
-      int charLocation = eeprom_fx_shift + (i * 14) + j;
+      int charLocation = eeprom_fx_shift + (i * 16) + j;
       
-      EEPROM.write(charLocation, fxName[j-1]);
+      EEPROM.write(charLocation, fxName[j-3]);
     }
     strcpy(fxName, "             ");
   }
 }
 
-uint8_t getFxChannel(uint8_t virtualButton) {
-  byte channel = EEPROM.read(eeprom_fx_shift + (virtualButton*14));
+uint8_t getFxLongPressLink(uint8_t virtualButton) { 
+  return EEPROM.read(eeprom_fx_shift + (virtualButton*16));
+}
+
+uint8_t getFxDoubleClickLink(uint8_t virtualButton) {
+  return EEPROM.read(eeprom_fx_shift+1 + (virtualButton*16));
+}
+
+uint8_t getFxCCnum(uint8_t virtualButton) {
+  return EEPROM.read(eeprom_fx_shift+2 + (virtualButton*16));
   
-  return channel;
 }
 
 void getFxShortName(uint8_t virtualButton, char * fx) { // button from 0 to 23
   //strcpy(fx, "   ");
   
-  for(uint8_t i=1; i<4; i++) {
-    fx[i-1] = EEPROM.read(eeprom_fx_shift + (virtualButton*14) + i);
+  for(uint8_t i=3; i<6; i++) {
+    fx[i-3] = EEPROM.read(eeprom_fx_shift + (virtualButton*16) + i);
   }
   fx[3]='\0';
 }
 
 void getFxLongName(uint8_t virtualButton, char fx[10]) { // button from 0 to 23
   //strcpy(fx, "          ");
-  for(uint8_t i=4; i<14; i++) {
-    fx[i-4] = EEPROM.read(eeprom_fx_shift + (virtualButton*14) + i);
+  for(uint8_t i=6; i<16; i++) {
+    fx[i-6] = EEPROM.read(eeprom_fx_shift + (virtualButton*16) + i);
   }
   fx[10]='\0';
 }
 
-void getFx(uint8_t virtualButton, char fx[15]) {   // button from 0 to 23
+void getFx(uint8_t virtualButton, char fx[17]) {   // button from 0 to 23
   
-  for(uint8_t i=0; i<14; i++) {
-    fx[i] = EEPROM.read(eeprom_fx_shift + (virtualButton*14) + i);
+  for(uint8_t i=0; i<16; i++) {
+    fx[i] = EEPROM.read(eeprom_fx_shift + (virtualButton*16) + i);
   }
-  fx[14]='\0';
+  fx[16]='\0';
 }
 
-void writeFx(uint8_t virtualButton, char fx[15]) {   // button from 0 to 23
+void writeFx(uint8_t virtualButton, char fx[17]) {   // button from 0 to 23
   
-  for(uint8_t i=0; i<14; i++) {
-    EEPROM.write(eeprom_fx_shift + (virtualButton*14) + i, fx[i]);
+  for(uint8_t i=0; i<16; i++) {
+    EEPROM.write(eeprom_fx_shift + (virtualButton*16) + i, fx[i]);
   }
   
 }
 
 void setFxChannel(uint8_t virtualButton, byte channel) {
-  EEPROM.write(eeprom_fx_shift + (virtualButton*14), channel);
+  EEPROM.write(eeprom_fx_shift + (virtualButton*16), channel);
 }
 
 void writeFxShortName(uint8_t virtualButton, char fx[]) { // button from 0 to 23
   
-  for(uint8_t i=1; i<4; i++) {
-    EEPROM.write(eeprom_fx_shift + (virtualButton*14) + i, fx[i-1]);
+  for(uint8_t i=3; i<6; i++) {
+    EEPROM.write(eeprom_fx_shift + (virtualButton*16) + i, fx[i-3]);
   }
 }
 
 void setFxLongName(uint8_t virtualButton, char fx[10]) { // button from 0 to 23
   
-  for(uint8_t i=4; i<14; i++) {
-    EEPROM.write(eeprom_fx_shift + (virtualButton*14) + i, fx[i-4]);
+  for(uint8_t i=6; i<16; i++) {
+    EEPROM.write(eeprom_fx_shift + (virtualButton*16) + i, fx[i-6]);
   }
 }
 

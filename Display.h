@@ -194,7 +194,7 @@ uint8_t drawMenu(char title[], char * options[], uint8_t option_len, uint8_t sel
   
 }
 
-void drawButtonEdit(uint8_t selectedIndex, byte fx[15]) {
+void drawButtonEdit(uint8_t selectedIndex, byte fx[17]) {
   char title[20];
   uint8_t xPos = 0;
   uint8_t yPos = 40;
@@ -202,7 +202,7 @@ void drawButtonEdit(uint8_t selectedIndex, byte fx[15]) {
   bool buttState[6]={1,1,1,1,1,1};
   if(selectedIndex==0) {
     buttState[3] = 0;
-  } else if(selectedIndex == 13) {
+  } else if(selectedIndex == 15) {
     buttState[5] = 0;
   }
   
@@ -214,9 +214,15 @@ void drawButtonEdit(uint8_t selectedIndex, byte fx[15]) {
     menu_nav_buttons(buttState);
 
     if(selectedIndex < 1) {
+      strcpy(title, "Long Press Link");
+      //u8g2.drawFrame(0, 32, 26, 10);
+    } else if(selectedIndex < 2) {
+      strcpy(title, "Double Click Link");
+      //u8g2.drawFrame(0, 32, 26, 10);
+    } else if(selectedIndex < 3) {
       strcpy(title, "Control Change N.");
       //u8g2.drawFrame(0, 32, 26, 10);
-    } else if(selectedIndex < 4) {
+    } else if(selectedIndex < 6) {
       strcpy(title, "Short Name");
       u8g2.drawFrame(31, 32, 23, 10);
     } else {
@@ -228,19 +234,31 @@ void drawButtonEdit(uint8_t selectedIndex, byte fx[15]) {
     u8g2.drawStr(1, 25, title);
     u8g2.setFont(u8g2_font_chroma48medium8_8r);
     
-    for(uint8_t i=0; i<14; i++) {
+    for(uint8_t i=0; i<16; i++) {
       
       xPos = 1 + i*7;  // space + i * char width
       if(i>0) {
-        xPos+=24; // space after controlChange
+        xPos+=3; // space after controlChange
       }
-      if(i>3) {
+      if(i>1) {
+        xPos+=3; // space after long press
+      }
+      if(i>1) {
+        xPos+=4; // space after doubleclick
+      }
+      // long press edit
+      // Double Click edit
+      if(i>5) {
         xPos+=4; // space after shortName (+cc)
       }
 
       char c[2];
       if(i==0) {
         sprintf(c, "%d", fx[i]);  // is ccnum
+      } else if(i==1) {
+        sprintf(c, "%d", fx[i]);  // is long press
+      } else if(i==2) {
+        sprintf(c, "%d", fx[i]);  // is double click
       } else {
         
         if(fx[i] > 31 && fx[i] < 127) {
