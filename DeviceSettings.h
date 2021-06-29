@@ -209,7 +209,7 @@ void writeFx(uint8_t virtualButton, char fx[17]) {   // button from 0 to 23
 }
 
 void setFxChannel(uint8_t virtualButton, byte channel) {
-  EEPROM.write(eeprom_fx_shift + (virtualButton*16), channel);
+  EEPROM.write(eeprom_fx_shift + (virtualButton*16)+2, channel);
 }
 
 void writeFxShortName(uint8_t virtualButton, char fx[]) { // button from 0 to 23
