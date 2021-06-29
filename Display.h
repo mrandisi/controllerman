@@ -197,7 +197,7 @@ uint8_t drawMenu(char title[], char * options[], uint8_t option_len, uint8_t sel
 void drawButtonEdit(uint8_t selectedIndex, byte fx[17]) {
   char title[20];
   uint8_t xPos = 0;
-  uint8_t yPos = 40;
+  uint8_t yPos = 30;
 
   bool buttState[6]={1,1,1,1,1,1};
   if(selectedIndex==0) {
@@ -224,47 +224,62 @@ void drawButtonEdit(uint8_t selectedIndex, byte fx[17]) {
       //u8g2.drawFrame(0, 32, 26, 10);
     } else if(selectedIndex < 6) {
       strcpy(title, "Short Name");
-      u8g2.drawFrame(31, 32, 23, 10);
+      u8g2.drawFrame(21, 34, 23, 10);
     } else {
       strcpy(title, "Long Name");
-      u8g2.drawFrame(56, 32, 72, 10);
+      u8g2.drawFrame(46, 34, 72, 10);
     }
 
     u8g2.setFont(u8g2_font_trixel_square_tf);
-    u8g2.drawStr(1, 25, title);
+    u8g2.drawStr(1, 18, title);
     u8g2.setFont(u8g2_font_chroma48medium8_8r);
     
     for(uint8_t i=0; i<16; i++) {
-      
+      yPos=30;
       xPos = 1 + i*7;  // space + i * char width
       if(i>0) {
-        xPos+=3; // space after controlChange
+        xPos+=40; // space after long press
       }
       if(i>1) {
-        xPos+=3; // space after long press
+        xPos+=40; // space after doubleclick
       }
-      if(i>1) {
-        xPos+=4; // space after doubleclick
+      if(i>2) {
+        xPos-=80; // space after controlChange
+        yPos=42;
       }
-      // long press edit
-      // Double Click edit
       if(i>5) {
         xPos+=4; // space after shortName (+cc)
       }
 
-      char c[2];
-      if(i==0) {
-        sprintf(c, "%d", fx[i]);  // is ccnum
-      } else if(i==1) {
-        sprintf(c, "%d", fx[i]);  // is long press
-      } else if(i==2) {
-        sprintf(c, "%d", fx[i]);  // is double click
-      } else {
+      char c[8];
+      if(i==0 || i==1) {  // is button link
+        if(fx[i] < 1) {
+          fx[i]=0;  // 0 is not a button, means that button link is disabled
+        } else if(fx[i] > 24) {
+          fx[i]=24;
+        }
+        if(fx[i]==0) {
+          sprintf(c, "%s", "Off");
+        } else {
+          uint8_t layout_n = (fx[i]-1) / 6;
+          uint8_t button = fx[i] - (layout_n*6);
+          char lsName[4];
+          strcpy_P(lsName, (char*)pgm_read_word(&( shortLayoutName[layout_n] )));
+          sprintf(c, "%s-%d", lsName, button);
+        }
+      } else if(i==2) {  // is ccnum
+        if(fx[i] < 1) {
+          fx[i]=1;
+        } else if(fx[i] > 126) {
+          fx[i]=126;
+        }
+        sprintf(c, "%d", fx[i]);
+      } else {  // is string
         
         if(fx[i] > 31 && fx[i] < 127) {
           c[0] = fx[i];
         }
-        else c[0] = 'a';//32;
+        else c[0] = 32; // 32->space
         c[1] = '\0';
       }
       
@@ -277,7 +292,97 @@ void drawButtonEdit(uint8_t selectedIndex, byte fx[17]) {
     
   } while ( u8g2.nextPage() );
 }
+/*void drawButtonEdit(uint8_t selectedIndex, byte fx[17]) {
+  char title[20];
+  uint8_t xPos = 0;
+  uint8_t yPos = 30;
 
+  bool buttState[6]={1,1,1,1,1,1};
+  if(selectedIndex==0) {
+    buttState[3] = 0;
+  } else if(selectedIndex == 15) {
+    buttState[5] = 0;
+  }
+  
+  u8g2.firstPage();
+  do {
+    u8g2.setFontDirection(0);
+    
+    // Navigation indicators
+    menu_nav_buttons(buttState);
+
+    if(selectedIndex < 1) {
+      strcpy(title, "Long Press Link");
+      //u8g2.drawFrame(0, 32, 26, 10);
+    } else if(selectedIndex < 2) {
+      strcpy(title, "Double Click Link");
+      //u8g2.drawFrame(0, 32, 26, 10);
+    } else if(selectedIndex < 3) {
+      strcpy(title, "Control Change N.");
+      //u8g2.drawFrame(0, 32, 26, 10);
+    } else if(selectedIndex < 6) {
+      strcpy(title, "Short Name");
+      u8g2.drawFrame(21, 34, 23, 10);
+    } else {
+      strcpy(title, "Long Name");
+      u8g2.drawFrame(46, 34, 72, 10);
+    }
+
+    u8g2.setFont(u8g2_font_trixel_square_tf);
+    u8g2.drawStr(1, 18, title);
+    u8g2.setFont(u8g2_font_chroma48medium8_8r);
+    
+    for(uint8_t i=0; i<16; i++) {
+      yPos=30;
+      xPos = 1 + i*7;  // space + i * char width
+      if(i>0) {
+        xPos+=14; // space after long press
+      }
+      if(i>1) {
+        xPos+=14; // space after doubleclick
+      }
+      if(i>2) {
+        xPos-=28; // space after controlChange
+        yPos=42;
+      }
+      if(i>5) {
+        xPos+=4; // space after shortName (+cc)
+      }
+
+      char c[4];
+      if(i==0 || i==1) {  // is button link
+        if(fx[i] < 1) {
+          fx[i]=0;  // 0 is not a button, means that button link is disabled
+        } else if(fx[i] > 24) {
+          fx[i]=24;
+        }
+        sprintf(c, "%d", fx[i]);
+      } else if(i==2) {  // is ccnum
+        if(fx[i] < 1) {
+          fx[i]=1;
+        } else if(fx[i] > 126) {
+          fx[i]=126;
+        }
+        sprintf(c, "%d", fx[i]);
+      } else {  // is string
+        
+        if(fx[i] > 31 && fx[i] < 127) {
+          c[0] = fx[i];
+        }
+        else c[0] = 32; // 32->space
+        c[1] = '\0';
+      }
+      
+      u8g2.drawStr(xPos, yPos, c);
+      
+      if(i==selectedIndex) { // selected
+        u8g2.drawBox(xPos, yPos-7, u8g2.getStrWidth(c)-1, 8);
+      }
+    }
+    
+  } while ( u8g2.nextPage() );
+}
+*/
 void init_display() {
   u8g2.begin();
 }

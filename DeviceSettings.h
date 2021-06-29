@@ -21,30 +21,30 @@ namespace settings
   
 } // end namespace setings
 
-const char defFx_0[] PROGMEM = "EQZEqualizer";
-const char defFx_1[] PROGMEM = "WAHPedal";
-const char defFx_2[] PROGMEM = "AWHAutoWah";
-const char defFx_3[] PROGMEM = "ENVEnvpFilter";
-const char defFx_4[] PROGMEM = "CMPCompressor";
-const char defFx_5[] PROGMEM = "BSTBoost";
-const char defFx_6[] PROGMEM = "OVDOverdrive";
-const char defFx_7[] PROGMEM = "FUZFuzz";
-const char defFx_8[] PROGMEM = "DSTDistorsion";
-const char defFx_9[] PROGMEM = "AC AmpChannel";
-const char defFx_10[] PROGMEM = "NSPNoiseSuppr";
-const char defFx_11[] PROGMEM = "OCTOctaver";
+const char defFx_0[] PROGMEM = "AC AmpChannel";
+const char defFx_1[] PROGMEM = "CMPCompressor";
+const char defFx_2[] PROGMEM = "WAHPedal";
+const char defFx_3[] PROGMEM = "BSTBoost";
+const char defFx_4[] PROGMEM = "ECOEcho";
+const char defFx_5[] PROGMEM = "RVBReverb";
+const char defFx_6[] PROGMEM = "CHOChorus";
+const char defFx_7[] PROGMEM = "FLRFlanger";
+const char defFx_8[] PROGMEM = "TRMTremolo";
+const char defFx_9[] PROGMEM = "PHAPhazer";
+const char defFx_10[] PROGMEM = "DLYDelay";
+const char defFx_11[] PROGMEM = "EQZEqualizer";
 const char defFx_12[] PROGMEM = "PITPitchSh";
-const char defFx_13[] PROGMEM = "CHOChorus";
-const char defFx_14[] PROGMEM = "FLRFlanger";
-const char defFx_15[] PROGMEM = "PHAPhazer";
+const char defFx_13[] PROGMEM = "OVDOverdrive";
+const char defFx_14[] PROGMEM = "DSTDistorsion";
+const char defFx_15[] PROGMEM = "OCTOctaver";
 const char defFx_16[] PROGMEM = "VBTVibrato";
 const char defFx_17[] PROGMEM = "FVLFoot Vol";
-const char defFx_18[] PROGMEM = "TRMTremolo";
+const char defFx_18[] PROGMEM = "FUZFuzz";
 const char defFx_19[] PROGMEM = "RTRRotary";
-const char defFx_20[] PROGMEM = "DLYDelay";
+const char defFx_20[] PROGMEM = "NSPNoiseSuppr";
 const char defFx_21[] PROGMEM = "SBKSlapback";
-const char defFx_22[] PROGMEM = "ECOEcho";
-const char defFx_23[] PROGMEM = "RVBReverb";
+const char defFx_22[] PROGMEM = "AWHAutoWah";
+const char defFx_23[] PROGMEM = "ENVEnvpFilter";
 const char* const defFx[] PROGMEM = {
   defFx_0,defFx_1,defFx_2,defFx_3,defFx_4,
   defFx_5,defFx_6,defFx_7,defFx_8,defFx_9,
@@ -59,6 +59,12 @@ const char layoutName_1[] PROGMEM = "Cyan";
 const char layoutName_2[] PROGMEM = "Green";
 const char layoutName_3[] PROGMEM = "Purple";
 const char* const layoutName[] PROGMEM = {layoutName_0,layoutName_1,layoutName_2,layoutName_3};
+
+const char shortLayoutName_0[] PROGMEM = "RED";
+const char shortLayoutName_1[] PROGMEM = "CYA";
+const char shortLayoutName_2[] PROGMEM = "GRN";
+const char shortLayoutName_3[] PROGMEM = "PUR";
+const char* const shortLayoutName[] PROGMEM = {shortLayoutName_0,shortLayoutName_1,shortLayoutName_2,shortLayoutName_3};
 
 
 byte boolArrayToByte(bool boolArray[8]) {
@@ -142,8 +148,8 @@ void write_default_fx() {
     //fx[0]=i+1;  // consecutive cc numbers from 1 to 24
 
     int charLocation = eeprom_fx_shift + (i * 16);  // +0 first location
-    EEPROM.write(charLocation, i + 1);  // write consecutive cc numbers from 1 to 24
-    EEPROM.write(charLocation+1, i + 1);  // write consecutive cc numbers from 1 to 24
+    EEPROM.write(charLocation, 0);  // long press disabled
+    EEPROM.write(charLocation+1, 0);  // double click disabled
     EEPROM.write(charLocation+2, i + 1);  // write consecutive cc numbers from 1 to 24
     
     for(uint8_t j=3; j<16; j++) {

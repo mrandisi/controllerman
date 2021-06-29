@@ -172,6 +172,9 @@ void updateRealtimeProcesses() {
 
 void manageAction(uint8_t i) {
   unsigned long press_time = millis();
+
+  uint8_t doubleClickEnabled = getFxDoubleClickLink( i + (6*(CURRENT_LAYOUT)) );
+  uint8_t longPressEnabled = getFxLongPressLink( i + (6*(CURRENT_LAYOUT)) );
   
   while(DEBOUNCER[i].read()==LOW) { // while button is released
     
@@ -219,13 +222,16 @@ void manageAction(uint8_t i) {
       } // end try all combinations
       
     } else {  // Long press detected
-      // System continues to call this field
-      // while button is released or action returns break=true;
-      bool break_flag = singlePress_hold(i+1);
 
-      if(break_flag) {  // wait for button release
-        while(DEBOUNCER[i].read()==LOW) {
-          DEBOUNCER[i].update();
+      if(longPressEnabled) {
+        // System continues to call this field
+        // while button is released or action returns break=true;
+        bool break_flag = singlePress_hold(i+1);
+
+        if(break_flag) {  // wait for button release
+          while(DEBOUNCER[i].read()==LOW) {
+            DEBOUNCER[i].update();
+          }
         }
       }
     }
@@ -234,20 +240,46 @@ void manageAction(uint8_t i) {
   }
   // primary button released (without double button combination)
   if((millis() - press_time) < 1000) {
+    bool isDoubleClick=false;
+
+    // Detect doubleCLick;
+    if(doubleClickEnabled) { // double click enabled for that button
+      press_time = millis();
+      while((millis() - press_time) < 250) {  // 250ms between the release and a press
+        DEBOUNCER[i].update();
+
+        if(DEBOUNCER[i].read()==LOW) {  // double click detected
+          isDoubleClick=true;
+
+          doubleClick(i+1);
+
+          // wait for release...
+          while((DEBOUNCER[i].read()==LOW)) {
+            DEBOUNCER[i].update();
+          }
+        }
+    }
+    }
+    if(!isDoubleClick) {
+      singlePress(i+1);
+    }
     
-    //  RUN SIMPLE ACTION
-    singlePress(i+1);
   }
   
 } // end manage action
+
+
+void doubleClick(uint8_t button) {
+  uint8_t virtual_button_index = button + (6*(CURRENT_LAYOUT)) - 1; // from 0 to 23
+  uint8_t vbutton_link = getFxDoubleClickLink(virtual_button_index);
+
+  toggleButton(vbutton_link-1);
+}
 
 void singlePress(uint8_t button) {
   uint8_t virtual_button_index = (6 * CURRENT_LAYOUT) + (button-1);
 
   toggleButton(virtual_button_index);
-  
-  //loadLayout();
-  //drawLayout(scr);
 }
 
 bool singlePress_hold(uint8_t button) {
@@ -532,9 +564,14 @@ uint8_t checkButtons() {
       DEBOUNCER[i].update();
       if(DEBOUNCER[i].read()==LOW) { // button is pressed
         
-        // hook waiting for release
-        while(DEBOUNCER[i].read()==LOW) {
+        // hook waiting for release 180ms, then jumps to the next
+        uint8_t count = 0;
+        while(DEBOUNCER[i].read()==LOW && count < 180) {
           DEBOUNCER[i].update();
+          delay(1);
+          if(i==1 || i==4) {  // only up/dpwn
+            count++;
+          }
         }
 
         btChoose = i+1; // button number
@@ -674,15 +711,6 @@ void swapButtons(uint8_t fromVButton, uint8_t toVButton) {  // 1 to 24
 bool editButton(uint8_t virtual_button) { // 1 to 24
   char fx[17];
   getFx(virtual_button-1, fx);
-
-//  if(editButton_navigation(fx)) {
-//    writeFx(virtual_button-1, fx);
-//    return true;
-//  }
-//  return false;
-//}
-
-//uint8_t editButton_navigation(char fx[17]) {
   uint8_t selectedIndex=0;
   
   while(true) {
@@ -691,15 +719,9 @@ bool editButton(uint8_t virtual_button) { // 1 to 24
     uint8_t butt_choice = checkButtons();  // waits for a choose
 
     if(butt_choice==5) {       // go up
-      if(fx[selectedIndex] < 126)
         fx[selectedIndex]+=1;
-      else fx[selectedIndex] = 32;
-
     }else if(butt_choice==2) { // go down
-      if(fx[selectedIndex] > 32)
         fx[selectedIndex]-=1;
-      else fx[selectedIndex] = 126;
-      
     } else if(butt_choice==4) { // go left
       if(selectedIndex>0) {
         selectedIndex--;
