@@ -17,7 +17,7 @@
             "intelliSenseMode": "gcc-x64",
             "includePath": [
                 "C:\\Users\\Marcus\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.2\\cores\\arduino",
-                "C:\\Users\\Marcus\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.2\\variants\\standard",
+                "C:\\Users\\Marcus\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.2\\variants\\eightanaloginputs",
                 "C:\\Users\\Marcus\\Documents\\Arduino\\libraries\\Bounce2\\src",
                 "C:\\Users\\Marcus\\Documents\\Arduino\\libraries\\MIDI_Library\\src",
                 "C:\\Users\\Marcus\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.2\\libraries\\EEPROM\\src",
@@ -36,7 +36,7 @@
             "defines": [
                 "F_CPU=16000000L",
                 "ARDUINO=10813",
-                "ARDUINO_AVR_DUEMILANOVE",
+                "ARDUINO_AVR_NANO",
                 "ARDUINO_ARCH_AVR",
                 "__DBL_MIN_EXP__=(-125)",
                 "__HQ_FBIT__=15",

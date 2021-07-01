@@ -40,11 +40,12 @@ bool EDIT_MODE=false;
 unsigned long LAZY_TIME=millis();
 uint8_t VERY_SLOW_COUNTER=0;
 
+bool UPDATE_SCREEN=false;
+
 // Instantiate the Bounce objects
 Bounce * DEBOUNCER = new Bounce[BUTTQTY];   // 6 debouncing objects
 
 void setup() {
-  init_display();
   
   //MIDI.begin();
   MIDI.begin(MIDI_CHANNEL_OMNI); // Initialize the Midi Library.
@@ -67,19 +68,26 @@ void setup() {
     DEBOUNCER[i].attach(PIN_BUTTON[i]);
     DEBOUNCER[i].interval(bounceInterval);
   }
-  
+
+  CHANNEL=read_outChannel();
+
   // boot animation
-  splash();
-  ledTest();
-  delay(500);
+  //splash();
+  //ledTest();
+  //delay(500);
+  ledBlink(/*ms_on*/3,/*ms_off*/0,/*repeat*/1);
 
   PATCH_STATE = read_default_patch();
   sprintf (scr.title, "P%03d", PATCH_STATE);
   load_default_states(PATCH_STATE);
-  loadLayout();
+  
+  //loadLayout();
+  UPDATE_SCREEN=true;
   
   // Synchronize all data at the beginning
-  updateDevice();
+  syncDevice();
+
+  init_display();
 } // end Setup
 
 void loop() {
@@ -103,6 +111,11 @@ void loop() {
     VERY_SLOW_COUNTER++;
     if(VERY_SLOW_COUNTER > 100) { // 10*100=one second
       VERY_SLOW_COUNTER=0;
+
+    if(UPDATE_SCREEN) {
+      loadLayout();
+      UPDATE_SCREEN=false;
+    }
 
       // opens the menu
       if(EDIT_MODE) {
@@ -130,7 +143,7 @@ void loop() {
 /**----------------------------------------------------------
  *          MIDI READ
  ----------------------------------------------------------*/
-void processPCmsg(byte channel, byte number, byte value) {
+/*void processPCmsg(byte channel, byte number, byte value) {
   //PATCH_STATE=number+1;
   char buf[8];
   sprintf (buf, "PC %d", number);
@@ -140,7 +153,7 @@ void processCCmsg(byte channel, byte number, byte value) {
   char buf[8];
   sprintf (buf, "CC %d", number);
   setTemporaryTitle(buf);
-}
+}*/
 /**----------------------------------------------------------
  *          END MIDI READ 
  * ----------------------------------------------------------*/
@@ -166,6 +179,7 @@ void customDelay(int delayTime) {
     nowTime = millis();
   }
 }
+
 void updateRealtimeProcesses() {
   //MIDI.read(); // Continuously check if Midi data has been received.
 }
@@ -268,7 +282,6 @@ void manageAction(uint8_t i) {
   
 } // end manage action
 
-
 void doubleClick(uint8_t button) {
   uint8_t virtual_button_index = button + (6*(CURRENT_LAYOUT)) - 1; // from 0 to 23
   uint8_t vbutton_link = getFxDoubleClickLink(virtual_button_index);
@@ -365,21 +378,22 @@ void toggleButton(uint8_t virtual_button) {
   getFxLongName(virtual_button, ln);
   uint8_t ccnum = getFxCCnum(virtual_button);
   
-  if(button_states[virtual_button]==false) {  // is inactive
-    button_states[virtual_button]=true;
-    MIDI.sendControlChange(getFxCCnum(virtual_button), 127, ccnum); // activate
+  if(BUTTON_STATES[virtual_button]==false) {  // is inactive
+    BUTTON_STATES[virtual_button]=true;
+    MIDI.sendControlChange(ccnum, 127, CHANNEL); // activate
     char buf[16];
     sprintf(buf, "%s %d ON", ln, ccnum);
     setTemporaryTitle(buf);
   } else {                    // is active
-    button_states[virtual_button]=false;
-    MIDI.sendControlChange(getFxCCnum(virtual_button), 0, channel);
+    BUTTON_STATES[virtual_button]=false;
+    MIDI.sendControlChange(ccnum, 0, CHANNEL);
     char buf[16];
     sprintf(buf, "%s %d OFF", ln, ccnum);
     setTemporaryTitle(buf);
   } // end if false
   
-  loadLayout();
+  //loadLayout();
+  UPDATE_SCREEN=true;
 }
 
 void scroll_next_layout() {
@@ -388,7 +402,8 @@ void scroll_next_layout() {
   } else {
     CURRENT_LAYOUT=0;
   }
-  loadLayout();
+  //loadLayout();
+  UPDATE_SCREEN=true;
   setTemporaryTitle(LAYOUT_TITLE);
 }
 
@@ -398,13 +413,15 @@ void scroll_prev_layout() {
   } else {
     CURRENT_LAYOUT=3;
   }
-  loadLayout();
+  //loadLayout();
+  UPDATE_SCREEN=true;
   setTemporaryTitle(LAYOUT_TITLE);
 }
 
 void reset_layout() {
   CURRENT_LAYOUT=0;
-  loadLayout();
+  //loadLayout();
+  UPDATE_SCREEN=true;
   setTemporaryTitle(LAYOUT_TITLE);
 }
 
@@ -420,7 +437,7 @@ void loadLayout() {
   // load button states from current layout 
   uint8_t shift = 6 * CURRENT_LAYOUT;  // 6*0=0; 6*1=6; 6*2=12...
   for(uint8_t i=0; i<6; i++) {
-    scr.buttonState[i] = button_states[i+shift];
+    scr.buttonState[i] = BUTTON_STATES[i+shift];
   }
   loadFxNames();
   drawLayout(scr);
@@ -445,7 +462,8 @@ void patchUp(){
   sprintf (scr.title, "P%03d", PATCH_STATE);
   load_default_states(PATCH_STATE);
   loadLayout();
-  updateDevice();
+  //UPDATE_SCREEN=true;
+  syncDevice();
 }
 
 void patchDown() {
@@ -457,7 +475,8 @@ void patchDown() {
   sprintf (scr.title, "P%03d", PATCH_STATE);
   load_default_states(PATCH_STATE);
   loadLayout();
-  updateDevice();
+  //UPDATE_SCREEN=true;
+  syncDevice();
 }
 
 void jumpPatchUp(){
@@ -471,7 +490,8 @@ void jumpPatchUp(){
   sprintf (scr.title, "P%03d", PATCH_STATE);
   load_default_states(PATCH_STATE);
   loadLayout();
-  updateDevice();
+  //UPDATE_SCREEN=true;
+  syncDevice();
 }
 
 void jumpPatchDown() {
@@ -485,18 +505,19 @@ void jumpPatchDown() {
   sprintf (scr.title, "P%03d", PATCH_STATE);
   load_default_states(PATCH_STATE);
   loadLayout();
-  updateDevice();
+  //UPDATE_SCREEN=true;
+  syncDevice();
 }
 
-void updateDevice() {
+void syncDevice() {
   // send the patch number
-  MIDI.sendProgramChange (PATCH_STATE-1, channel); // counts from 0 that stands for the patch 1
+  MIDI.sendProgramChange (PATCH_STATE-1, CHANNEL); // counts from 0 that stands for the patch 1
   delay(8);
   for(uint8_t i=0; i<24; i++) {
-      if(button_states[i]==false) {
-        MIDI.sendControlChange(getFxCCnum(i), 0, channel);
+      if(BUTTON_STATES[i]==false) {
+        MIDI.sendControlChange(getFxCCnum(i), 0, CHANNEL);
       } else {
-        MIDI.sendControlChange(getFxCCnum(i), 127, channel);
+        MIDI.sendControlChange(getFxCCnum(i), 127, CHANNEL);
       }
       delay(8);
   }
@@ -509,8 +530,6 @@ void setRgbColor(uint8_t c[]) {
   analogWrite(PIN_RGB_BLUE, c[2]/divider);
 }
 
-
-
 void setTemporaryTitle(char * tmpTitle) {
   // TODO draw frame
   TITLE_TIMEOUT_ENABLED=true;
@@ -519,28 +538,42 @@ void setTemporaryTitle(char * tmpTitle) {
   drawLayout(scr);
 }
 
-void ledTest() {
-  // RGB animation
-  //int rgbWait=500;
-  for(int i=0; i<64; i++){ // Red
-    analogWrite(PIN_RGB_RED, i);
-    //delayMicroseconds(rgbWait);
-    delay(10);
+/*void ledTest() {
+  uint8_t c[3]={0,0,0};
+  
+  for(uint8_t i=0; i<4; i++) {  // four layout colors, less than first (red)
+    uint8_t c2[3]={LAYOUT_COLOR[i][0]/4, LAYOUT_COLOR[i][1]/4, LAYOUT_COLOR[i][2]/4};
+    while(c[0]<c2[0] || c[1]<c2[1] || c[2]<c2[2] ) {
+      for(uint8_t j=0; j<3; j++) {
+        if(c[j] < c2[j]) {
+          uint8_t inc = c[j]/6;
+          c[j]+=1+inc;
+        }
+      }
+      analogWrite(PIN_RGB_RED, c[0]);
+      analogWrite(PIN_RGB_GREEN, c[1]);
+      analogWrite(PIN_RGB_BLUE, c[2]);
+      delay(20);
+    }
+    
+    c[0]=c[1]=c[2]=0;
   }
-  for(int i=64; i>=0; i--){
-    analogWrite(PIN_RGB_RED, i);
-    //delayMicroseconds(rgbWait);
-    delay(10);
-  }
-} // end led test
+  setRgbColor(c);
+} // end led test*/
 
-void tapBlink() {
-  analogWrite(PIN_RGB_RED, 255);
-  analogWrite(PIN_RGB_GREEN, 255);
-  analogWrite(PIN_RGB_BLUE, 255);
-  delay(3);
-  setRgbColor(LAYOUT_COLOR[CURRENT_LAYOUT]);
-} // end led Blink
+void ledBlink(uint8_t ms_on, uint8_t ms_off, uint8_t repeat) {
+  for(uint8_t i=0; i<repeat; i++) {
+    analogWrite(PIN_RGB_RED, 255);
+    analogWrite(PIN_RGB_GREEN, 255);
+    analogWrite(PIN_RGB_BLUE, 255);
+    delay(ms_on);
+    setRgbColor(LAYOUT_COLOR[CURRENT_LAYOUT]);
+    delay(ms_off);
+  }
+} // end led Blink*/
+
+// Reboot
+void(* reboot)(void) = 0;
 
 /** ----------------------------------------------------------
  *          END UTILS
@@ -551,9 +584,6 @@ void tapBlink() {
 /** ----------------------------------------------------------
  *          SETTINGS MENU
  * ----------------------------------------------------------*/
-
-
-void(* reboot)(void) = 0;
 
 uint8_t checkButtons() {
   uint8_t btChoose=0;
@@ -585,26 +615,37 @@ uint8_t checkButtons() {
 void settings_menu() {
   EDIT_MODE=true;
 
-  uint8_t m_index=0;
+  /*uint8_t m_index=0;
   char title[20] = "Settings";
-  char * m_options[20] = {"Save button states","Swap Buttons","Edit button","Set as boot patch","Reset device"};
-  uint8_t m_option_len = 5;
+  char * m_options[20] = {"Save button states","Swap Buttons","Edit button","Set default patch","Set out channel","Reset device"};
+  uint8_t m_option_len = 6;
   uint8_t m_selected_entry=0;
-  bool m_buttState[6]={1,1,1,0,1,1};
-  uint8_t go_fw=0;
+  bool m_buttState[6]={1,1,1,0,1,1};*/
+  //uint8_t go_fw=0;
   
-  go_fw = menu_navigation(m_index, title, m_options, m_option_len, m_selected_entry, m_buttState);
+  //go_fw = menu_navigation(m_index, title, m_options, m_option_len, m_selected_entry, m_buttState);
+
+  
+  uint8_t menu_id = 1;
+  uint8_t defaultEntry = 1;
+  uint8_t go_fw = listChooser2("Settings", menu_id, defaultEntry);
 
   if(go_fw==1) { // save button states
     setTemporaryTitle("Save fx states");
     write_default_states(PATCH_STATE);
 
   } else if(go_fw==2) { // swap
-            
-    uint8_t fromVButton = chooseButton("Move From");
+    
+    //uint8_t fromVButton = chooseButton("Move From");
+    uint8_t menu_id = 3;
+    uint8_t defaultEntry = 1;
+    uint8_t fromVButton = listChooser("Choose 1st button", menu_id, defaultEntry);
     if(!fromVButton) return;
 
-    uint8_t toVButton = chooseButton("Move To");
+    //uint8_t toVButton = chooseButton("Move To");
+    menu_id = 3;
+    defaultEntry = 1;
+    uint8_t toVButton = listChooser("Choose 2nd button", menu_id, defaultEntry);
     if(!toVButton) return;
     
     swapButtons(fromVButton, toVButton);
@@ -615,9 +656,11 @@ void settings_menu() {
     
   } else if(go_fw==3) { // Edit button
     
-
-    uint8_t virtual_button = 0;
-    virtual_button = chooseButton("Button to edit");
+    //virtual_button = 0;
+    //virtual_button = chooseButton("Button to edit");
+    menu_id = 3;
+    defaultEntry = 1;
+    uint8_t virtual_button = listChooser("Choose button", menu_id, defaultEntry);
     
     if(!virtual_button) return;
 
@@ -626,13 +669,41 @@ void settings_menu() {
       loadLayout();
     }
 
-  } else if(go_fw==4) { // Save patch
-    setTemporaryTitle("Saved!");
-    write_default_patch(PATCH_STATE);
+  } else if(go_fw==4) { // Set boot patch
 
-  } else if(go_fw==5) { // Reset
+      uint8_t menu_id = 4;
+      uint8_t defaultEntry = read_default_patch();
+      uint8_t choice = listChooser("Select boot patch", menu_id, defaultEntry);
+      if(choice>0) {
+        write_default_patch(choice);
+        char str[20];
+        sprintf(str, "Will boot on P. %d", choice);
+        setTemporaryTitle(str);
+
+      } else {
+        //go_fw = 0;
+      }
+
+  } else if(go_fw==5) { // Set out channel
+
+      uint8_t menu_id = 5;
+      uint8_t defaultEntry = read_outChannel();
+      uint8_t choice = listChooser("Select out channel", menu_id, defaultEntry);
+      if(choice>0) {
+        write_outChannel(choice);
+        char str[20];
+        sprintf(str, "Out channel: %d", choice);
+        setTemporaryTitle(str);
+
+      } else {
+        //go_fw = 0;
+      }
+    
+  } else if(go_fw==6) { // Reset
     setTemporaryTitle("Reset, wait...");
     clear_eeprom();
+    write_outChannel(8);
+    write_default_patch(1);
     write_default_fx();
     reboot();
 
@@ -640,7 +711,7 @@ void settings_menu() {
   
 }
 
-uint8_t chooseButton(char* title) { // return 1-24 or 0 as no choice
+/*uint8_t chooseButton(char* title) { // return 1-24 or 0 as no choice
   
   bool m_buttState[6]={1,1,1,0,1,1};
   
@@ -658,7 +729,7 @@ uint8_t chooseButton(char* title) { // return 1-24 or 0 as no choice
   uint8_t virtual_button_index = fromButton + (6*(fromLayout-1)); // from 0 to 23
 
   return virtual_button_index;
-}
+}*/
 
 void swapStates(uint8_t fromVButton, uint8_t toVButton) {  // 1 to 24
   fromVButton--;
@@ -667,10 +738,10 @@ void swapStates(uint8_t fromVButton, uint8_t toVButton) {  // 1 to 24
   for(uint8_t i=1; i<=125; i++) {
     load_default_states(i);
 
-    if(button_states[fromVButton] != button_states[toVButton]) {  // if different swap and save
-      bool tmp = button_states[fromVButton];
-      button_states[fromVButton] = button_states[toVButton];
-      button_states[toVButton] = tmp;
+    if(BUTTON_STATES[fromVButton] != BUTTON_STATES[toVButton]) {  // if different swap and save
+      bool tmp = BUTTON_STATES[fromVButton];
+      BUTTON_STATES[fromVButton] = BUTTON_STATES[toVButton];
+      BUTTON_STATES[toVButton] = tmp;
 
       write_default_states(i);
     }
@@ -696,12 +767,12 @@ void swapButtons(uint8_t fromVButton, uint8_t toVButton) {  // 1 to 24
   char fromLongName[11];
   getFxLongName(fromVButton, fromLongName);
   
-  setFxChannel(toVButton, fromChannel);
+  setFxCCnum(toVButton, fromChannel);
   writeFxShortName(toVButton, fromShortName);
   setFxLongName(toVButton, fromLongName);
 
   // metto tmp in FROM
-  setFxChannel(fromVButton, tmpChannel);
+  setFxCCnum(fromVButton, tmpChannel);
   writeFxShortName(fromVButton, tmpShortName);
   setFxLongName(fromVButton, tmpLongName);
   
@@ -743,7 +814,7 @@ bool editButton(uint8_t virtual_button) { // 1 to 24
 }
 
 // gestisce lo spostamento interno del menu, ritorna 0 o 1 per tornare indietro o andare avanti
-uint8_t menu_navigation(uint8_t m_index, char title[], char * m_options[], uint8_t m_option_len, uint8_t m_selected_entry, bool m_buttState[]) {
+/*uint8_t menu_navigation(uint8_t m_index, char title[], char * m_options[], uint8_t m_option_len, uint8_t m_selected_entry, bool m_buttState[]) {
   uint8_t butt_choice = 0;
   while(butt_choice==0 || butt_choice==5 || butt_choice==2) {
     
@@ -763,6 +834,95 @@ uint8_t menu_navigation(uint8_t m_index, char title[], char * m_options[], uint8
     }
 
   }
+  
+  return 0;
+}*/
+
+uint8_t listChooser(char* title, uint8_t menu_id, uint8_t defaultEntry) {
+  uint8_t m_selected_entry=defaultEntry;  // 1 to n
+  
+  uint8_t butt_choice = 0;
+  
+  while(butt_choice==0 || butt_choice==5 || butt_choice==2) {   // cancel, up, down
+    
+    drawListChooser(title, menu_id, m_selected_entry);
+    
+    uint8_t menuLen = getPMStrSize(menu_id);
+
+    butt_choice = 0;
+    butt_choice = checkButtons();  // waits for a choose
+    
+    if(butt_choice==5) {       // go up
+
+      if(m_selected_entry < menuLen) {
+        m_selected_entry++;
+      } else {
+        m_selected_entry=1;
+      }
+      
+    }else if(butt_choice==2) { // go down
+
+      if(m_selected_entry > 1) {
+        m_selected_entry--;
+      } else {
+        m_selected_entry=menuLen;
+      }
+
+    } else if(butt_choice==1) {  // confirm
+      return m_selected_entry;
+
+    } else if(butt_choice==3) {   // cancel
+      return 0;
+
+    }
+
+  }
+  
+  return 0;
+}
+
+uint8_t listChooser2(char* title, uint8_t menu_id, uint8_t defaultEntry) {
+
+  uint8_t menuLen = getPMStrSize(menu_id);
+  
+  uint8_t m_selected_entry=defaultEntry;  // 1 to n
+  uint8_t firstItem=1;
+  uint8_t butt_choice = 0;
+  
+  while(butt_choice==0 || butt_choice==5 || butt_choice==2) {   // cancel, up, down
+    if(menuLen>6) {
+      drawListChooser(title, menu_id, m_selected_entry);
+    } else {
+      drawListChooser2(title, menu_id, m_selected_entry, firstItem);
+  
+      butt_choice = 0;
+      butt_choice = checkButtons();  // waits for a choose
+      
+      if(butt_choice==2) {       // go up
+  
+        if(m_selected_entry < menuLen) {
+          m_selected_entry++;
+        } else {
+          m_selected_entry=1;
+        }
+        
+      }else if(butt_choice==5) { // go down
+  
+        if(m_selected_entry > 1) {
+          m_selected_entry--;
+        } else {
+          m_selected_entry=menuLen;
+        }
+  
+      } else if(butt_choice==1) {  // confirm
+        return m_selected_entry;
+  
+      } else if(butt_choice==3) {   // cancel
+        return 0;
+  
+      }
+    } // end if menulen > 6
+  } // end while
   
   return 0;
 }

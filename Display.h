@@ -24,8 +24,8 @@ void splash() {
     u8g2.setFont(u8g2_font_tenfatguys_t_all);
     u8g2.drawStr(10,31,"CONTROLLER");
     u8g2.drawStr(60,43,"MAN");
-    u8g2.setFont(u8g2_font_tenthinnerguys_t_all);
-    u8g2.drawStr(45,58,"Stomp 6");
+    //u8g2.setFont(u8g2_font_tenthinnerguys_t_all);
+    //u8g2.drawStr(45,58,"Stomp 6");
   } while ( u8g2.nextPage() );
 }
 
@@ -42,7 +42,7 @@ void drawLayout(screenLayout scr){
     u8g2.setFont(u8g2_font_tenfatguys_t_all); // fat font
     strLen = u8g2.getStrWidth(scr.title);
 
-    if(strLen>60) {
+    if(strLen>100) {
        // thin font
        u8g2.setFont(u8g2_font_tenthinnerguys_t_all);
        strLen = u8g2.getStrWidth(scr.title);
@@ -55,7 +55,7 @@ void drawLayout(screenLayout scr){
     u8g2.drawStr(xPos, 30+(u8g2.getMaxCharHeight()/2), scr.title);
 
     // Short Labels
-    u8g2.setFont(u8g2_font_tenfatguys_tr);
+    u8g2.setFont(u8g2_font_tenfatguys_t_all);
   
     u8g2.setFontMode(1); //* activate transparent font mode 
     u8g2.setDrawColor(2);
@@ -153,7 +153,7 @@ void menu_nav_buttons(bool buttState[]) {
       u8g2.drawStr(118, 64, "U"); // back
 }
 
-uint8_t drawMenu(char title[], char * options[], uint8_t option_len, uint8_t sel, bool buttState[]){
+/*uint8_t drawMenu(char title[], char * options[], uint8_t option_len, uint8_t sel, bool buttState[]){
   uint8_t xPos;
   uint8_t yPos;
   uint8_t titleLen;
@@ -192,7 +192,7 @@ uint8_t drawMenu(char title[], char * options[], uint8_t option_len, uint8_t sel
     
   } while ( u8g2.nextPage() );
   
-}
+}*/
 
 void drawButtonEdit(uint8_t selectedIndex, char fx[17]) {
   char title[20];
@@ -296,6 +296,84 @@ void drawButtonEdit(uint8_t selectedIndex, char fx[17]) {
     }
     
   } while ( u8g2.nextPage() );
+}
+
+uint8_t drawListChooser(char* title, uint8_t menu_id, uint8_t sel) {
+
+  uint8_t m_option_len = getPMStrSize(menu_id);
+  bool buttState[6]={1,1,1,0,1,0};
+
+  uint8_t xPos;
+  uint8_t yPos;
+  uint8_t titleLen;
+  uint8_t strLen;
+  uint8_t maxW=0;
+  
+  u8g2.firstPage();
+  do {
+    u8g2.setFontDirection(0);
+    
+    // Navigation indicators
+    menu_nav_buttons(buttState);
+
+    // Menu
+    u8g2.setFont(u8g2_font_trixel_square_tf);
+    u8g2.drawStr(1, 18, title);
+
+    u8g2.setFont(u8g2_font_tenthinnerguys_t_all);
+    char myString[20];
+    getPMString(menu_id, sel-1, myString);
+    strLen = u8g2.getStrWidth(myString);
+    xPos = 64-(strLen/2); // center h
+    yPos =  30+(u8g2.getMaxCharHeight()/2); // center v
+
+    u8g2.drawStr(xPos, yPos, myString);
+    u8g2.drawBox(xPos-1, yPos-u8g2.getMaxCharHeight(), strLen+2, u8g2.getMaxCharHeight()+2);
+    
+  } while ( u8g2.nextPage() );
+  
+}
+
+uint8_t drawListChooser2(char* title, uint8_t menu_id, uint8_t sel, uint8_t firstItem) {
+
+  uint8_t m_option_len = getPMStrSize(menu_id);
+  bool buttState[6]={1,1,1,0,1,0};
+  uint8_t xPos;
+  uint8_t yPos;
+  uint8_t titleLen;
+  uint8_t strLen;
+  uint8_t maxW=0;
+  
+  u8g2.firstPage();
+  do {
+    u8g2.setFontDirection(0);
+    
+    menu_nav_buttons(buttState);
+
+    // Menu
+    u8g2.setFont(u8g2_font_trixel_square_tf);
+    uint8_t char_height=7;//u8g2.getMaxCharHeight();
+    u8g2.drawStr(1, 25, title);
+    titleLen = u8g2.getStrWidth(title)+4;
+    
+    for(uint8_t i=0; i<m_option_len; i++) {
+
+      char myString[20];
+      getPMString(menu_id, i, myString);
+      
+      yPos = 14+(char_height*(i));
+      strLen = u8g2.getStrWidth(myString);
+      //maxW = strLen > maxW ? strLen : maxW;
+      u8g2.drawStr(titleLen+2, yPos-1, myString);
+      
+      if(i+1==sel) { // selected
+        u8g2.drawBox(titleLen+1, yPos-char_height, strLen+4, 7);
+      }
+    }
+    u8g2.drawLine(titleLen, char_height, titleLen, yPos-1);
+    
+  } while ( u8g2.nextPage() );
+  
 }
 
 void init_display() {

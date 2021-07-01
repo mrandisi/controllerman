@@ -1,6 +1,6 @@
 {
-    "configuration": "cpu=atmega328",
-    "board": "arduino:avr:diecimila",
-    "port": "COM12",
+    "configuration": "cpu=atmega328old",
+    "board": "arduino:avr:nano",
+    "port": "COM6",
     "sketch": "controllerman.ino"
 }

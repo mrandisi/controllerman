@@ -5,16 +5,17 @@
 #include <EEPROM.h>
 
 // midi settings
-uint8_t channel = 8; // channel: OFF / 1-16
+uint8_t CHANNEL = 8; // channel: OFF / 1-16
 
 uint8_t CURRENT_LAYOUT = 0;
 char LAYOUT_TITLE[16];
 uint8_t PATCH_STATE = 1; // PC: OFF / 1-128 -> path from 1 to 125
-bool button_states[24];
+bool BUTTON_STATES[24];
 
-int eeprom_states_shift=100;
-int eeprom_fx_shift=500;
-const int eeprom_patch_default_state=50;
+int EEPROM_STATES_SHIFT=100;
+int EEPROM_FX_SHIFT=500;
+const int EEPROM_PATCH_DEFAULT_STATE=50;
+const int EEPROM_OUTCHANNEL=51;
 
 namespace settings
 {
@@ -66,6 +67,14 @@ const char shortLayoutName_2[] PROGMEM = "GRN";
 const char shortLayoutName_3[] PROGMEM = "PUR";
 const char* const shortLayoutName[] PROGMEM = {shortLayoutName_0,shortLayoutName_1,shortLayoutName_2,shortLayoutName_3};
 
+const char menu1_0[] PROGMEM = "Save button states";
+const char menu1_1[] PROGMEM = "Swap Buttons";
+const char menu1_2[] PROGMEM = "Edit button";
+const char menu1_3[] PROGMEM = "Set boot patch";
+const char menu1_4[] PROGMEM = "Set out channel";
+const char menu1_5[] PROGMEM = "Reset device";
+const char* const menu1[] PROGMEM = {menu1_0, menu1_1, menu1_2, menu1_3, menu1_4, menu1_5};
+
 
 byte boolArrayToByte(bool boolArray[8]) {
   byte bits;
@@ -86,7 +95,7 @@ void byteToBoolArray(byte eightBit, bool b[]) {
 void load_default_states(uint8_t patch) {
   bool boolArr[3][8];
   
-  int first_location = eeprom_states_shift + (patch-1) * 3;
+  int first_location = EEPROM_STATES_SHIFT + (patch-1) * 3;
   
   byte newByte;
 
@@ -102,7 +111,7 @@ void load_default_states(uint8_t patch) {
   for(uint8_t i=0; i<3; i++) {
     //Serial.print("+");
     for(uint8_t j=0; j<8; j++) {
-      button_states[k] = boolArr[i][j];
+      BUTTON_STATES[k] = boolArr[i][j];
       k++;
       //Serial.print(boolArr[i][j], BIN);
     }
@@ -113,12 +122,12 @@ void load_default_states(uint8_t patch) {
 void write_default_states(uint8_t patch) {
   bool boolArr[3][8];
   
-  int first_location = eeprom_states_shift + (patch-1) * 3;
+  int first_location = EEPROM_STATES_SHIFT + (patch-1) * 3;
   
   uint8_t k=0;
   for(uint8_t i=0; i<3; i++) {
     for(uint8_t j=0; j<8; j++) {
-      boolArr[i][j] = button_states[k];
+      boolArr[i][j] = BUTTON_STATES[k];
       k++;
     }
   } // end for ij-k
@@ -134,7 +143,7 @@ void clear_eeprom() {
   bool a[8] = {0,0,0,0,0,0,0,0};
   byte emptyByte = boolArrayToByte(a);
   for(int i=0; i<1024; i++) {
-    EEPROM.write(eeprom_states_shift+i, emptyByte);
+    EEPROM.write(EEPROM_STATES_SHIFT+i, emptyByte);
   }
 }
 
@@ -147,14 +156,14 @@ void write_default_fx() {
     strcpy_P(fxName, (char*)pgm_read_word(&( defFx[i] ))); // get the couple short+long_name
     //fx[0]=i+1;  // consecutive cc numbers from 1 to 24
 
-    int charLocation = eeprom_fx_shift + (i * 16);  // +0 first location
+    int charLocation = EEPROM_FX_SHIFT + (i * 16);  // +0 first location
     EEPROM.write(charLocation, 0);  // long press disabled
     EEPROM.write(charLocation+1, 0);  // double click disabled
     EEPROM.write(charLocation+2, i + 1);  // write consecutive cc numbers from 1 to 24
     
     for(uint8_t j=3; j<16; j++) {
       
-      int charLocation = eeprom_fx_shift + (i * 16) + j;
+      int charLocation = EEPROM_FX_SHIFT + (i * 16) + j;
       
       EEPROM.write(charLocation, fxName[j-3]);
     }
@@ -163,15 +172,15 @@ void write_default_fx() {
 }
 
 uint8_t getFxLongPressLink(uint8_t virtualButton) { 
-  return EEPROM.read(eeprom_fx_shift + (virtualButton*16));
+  return EEPROM.read(EEPROM_FX_SHIFT + (virtualButton*16));
 }
 
 uint8_t getFxDoubleClickLink(uint8_t virtualButton) {
-  return EEPROM.read(eeprom_fx_shift+1 + (virtualButton*16));
+  return EEPROM.read(EEPROM_FX_SHIFT+1 + (virtualButton*16));
 }
 
 uint8_t getFxCCnum(uint8_t virtualButton) {
-  return EEPROM.read(eeprom_fx_shift+2 + (virtualButton*16));
+  return EEPROM.read(EEPROM_FX_SHIFT+2 + (virtualButton*16));
   
 }
 
@@ -179,7 +188,7 @@ void getFxShortName(uint8_t virtualButton, char * fx) { // button from 0 to 23
   //strcpy(fx, "   ");
   
   for(uint8_t i=3; i<6; i++) {
-    fx[i-3] = EEPROM.read(eeprom_fx_shift + (virtualButton*16) + i);
+    fx[i-3] = EEPROM.read(EEPROM_FX_SHIFT + (virtualButton*16) + i);
   }
   fx[3]='\0';
 }
@@ -187,7 +196,7 @@ void getFxShortName(uint8_t virtualButton, char * fx) { // button from 0 to 23
 void getFxLongName(uint8_t virtualButton, char fx[10]) { // button from 0 to 23
   //strcpy(fx, "          ");
   for(uint8_t i=6; i<16; i++) {
-    fx[i-6] = EEPROM.read(eeprom_fx_shift + (virtualButton*16) + i);
+    fx[i-6] = EEPROM.read(EEPROM_FX_SHIFT + (virtualButton*16) + i);
   }
   fx[10]='\0';
 }
@@ -195,7 +204,7 @@ void getFxLongName(uint8_t virtualButton, char fx[10]) { // button from 0 to 23
 void getFx(uint8_t virtualButton, char fx[17]) {   // button from 0 to 23
   
   for(uint8_t i=0; i<16; i++) {
-    fx[i] = EEPROM.read(eeprom_fx_shift + (virtualButton*16) + i);
+    fx[i] = EEPROM.read(EEPROM_FX_SHIFT + (virtualButton*16) + i);
   }
   fx[16]='\0';
 }
@@ -203,40 +212,84 @@ void getFx(uint8_t virtualButton, char fx[17]) {   // button from 0 to 23
 void writeFx(uint8_t virtualButton, char fx[17]) {   // button from 0 to 23
   
   for(uint8_t i=0; i<16; i++) {
-    EEPROM.write(eeprom_fx_shift + (virtualButton*16) + i, fx[i]);
+    EEPROM.write(EEPROM_FX_SHIFT + (virtualButton*16) + i, fx[i]);
   }
   
 }
 
-void setFxChannel(uint8_t virtualButton, byte channel) {
-  EEPROM.write(eeprom_fx_shift + (virtualButton*16)+2, channel);
+void setFxCCnum(uint8_t virtualButton, byte channel) {
+  EEPROM.write(EEPROM_FX_SHIFT + (virtualButton*16)+2, CHANNEL);
 }
 
 void writeFxShortName(uint8_t virtualButton, char fx[]) { // button from 0 to 23
   
   for(uint8_t i=3; i<6; i++) {
-    EEPROM.write(eeprom_fx_shift + (virtualButton*16) + i, fx[i-3]);
+    EEPROM.write(EEPROM_FX_SHIFT + (virtualButton*16) + i, fx[i-3]);
   }
 }
 
 void setFxLongName(uint8_t virtualButton, char fx[10]) { // button from 0 to 23
   
   for(uint8_t i=6; i<16; i++) {
-    EEPROM.write(eeprom_fx_shift + (virtualButton*16) + i, fx[i-6]);
+    EEPROM.write(EEPROM_FX_SHIFT + (virtualButton*16) + i, fx[i-6]);
   }
 }
 
 uint8_t read_default_patch() {
-  uint8_t patch = EEPROM.read(eeprom_patch_default_state);
+  uint8_t patch = EEPROM.read(EEPROM_PATCH_DEFAULT_STATE);
   if(patch > 0)
     return patch;
   return 1;
 }
 
 void write_default_patch(uint8_t patch_num) {
-  EEPROM.write(eeprom_patch_default_state, patch_num);
+  EEPROM.write(EEPROM_PATCH_DEFAULT_STATE, patch_num);
 }
 
+uint8_t read_outChannel() {
+  uint8_t channel = EEPROM.read(EEPROM_OUTCHANNEL);
+  if(channel > 0)
+    return channel;
+  return 1;
+}
+
+void write_outChannel(uint8_t channel) {
+  EEPROM.write(EEPROM_OUTCHANNEL, channel);
+}
+
+void getPMString(uint8_t target, uint8_t index, char myString[20]) {
+  
+  if(target == 1) {
+    strcpy_P(myString, (char*)pgm_read_word(&( menu1[index] )));
+  } else if(target == 3) {  // list of virtual buttons
+          uint8_t vButt = index+1;
+          uint8_t layout_n = (vButt-1) / 6;
+          uint8_t button = vButt - (layout_n*6);
+          char lsName[4];
+          strcpy_P(lsName, (char*)pgm_read_word(&( shortLayoutName[layout_n] )));
+          char shortName[4];
+          getFxShortName(index, shortName);
+          sprintf(myString, "%s-%d %s", lsName, vButt, shortName);
+    
+  } else if(target == 4) {
+    sprintf(myString, "%03d", index+1);
+  } else if(target == 5) {
+    sprintf(myString, "%d", index+1);
+  }
+}
+uint8_t getPMStrSize(uint8_t target) {
+  
+  if(target==1) {
+    return 6;
+  } else if(target == 3) {
+    return 24;
+  } else if(target == 4) {
+    return 125;
+  } else if(target == 5) {
+    return 16;
+  }
+  return 0;
+}
 
 
 #endif /* DEVICE_SETTINGS_H */
