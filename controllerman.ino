@@ -628,7 +628,7 @@ void settings_menu() {
   
   uint8_t menu_id = 1;
   uint8_t defaultEntry = 1;
-  uint8_t go_fw = listChooser2("Settings", menu_id, defaultEntry);
+  uint8_t go_fw = listChooser("Settings", menu_id, defaultEntry);
 
   if(go_fw==1) { // save button states
     setTemporaryTitle("Save fx states");
@@ -838,7 +838,7 @@ bool editButton(uint8_t virtual_button) { // 1 to 24
   return 0;
 }*/
 
-uint8_t listChooser(char* title, uint8_t menu_id, uint8_t defaultEntry) {
+/*uint8_t listChooser(char* title, uint8_t menu_id, uint8_t defaultEntry) {
   uint8_t m_selected_entry=defaultEntry;  // 1 to n
   
   uint8_t butt_choice = 0;
@@ -876,12 +876,12 @@ uint8_t listChooser(char* title, uint8_t menu_id, uint8_t defaultEntry) {
 
     }
 
-  }
+  } // end while
   
   return 0;
-}
+}*/
 
-uint8_t listChooser2(char* title, uint8_t menu_id, uint8_t defaultEntry) {
+uint8_t listChooser(char* title, uint8_t menu_id, uint8_t defaultEntry) {
 
   uint8_t menuLen = getPMStrSize(menu_id);
   
@@ -892,9 +892,37 @@ uint8_t listChooser2(char* title, uint8_t menu_id, uint8_t defaultEntry) {
   while(butt_choice==0 || butt_choice==5 || butt_choice==2) {   // cancel, up, down
     if(menuLen>6) {
       drawListChooser(title, menu_id, m_selected_entry);
+      
+      butt_choice = 0;
+      butt_choice = checkButtons();  // waits for a choose
+      
+      if(butt_choice==5) {       // go up
+  
+        if(m_selected_entry < menuLen) {
+          m_selected_entry++;
+        } else {
+          m_selected_entry=1;
+        }
+        
+      }else if(butt_choice==2) { // go down
+  
+        if(m_selected_entry > 1) {
+          m_selected_entry--;
+        } else {
+          m_selected_entry=menuLen;
+        }
+  
+      } else if(butt_choice==1) {  // confirm
+        return m_selected_entry;
+  
+      } else if(butt_choice==3) {   // cancel
+        return 0;
+  
+      }
+
     } else {
       drawListChooser2(title, menu_id, m_selected_entry, firstItem);
-  
+    
       butt_choice = 0;
       butt_choice = checkButtons();  // waits for a choose
       
