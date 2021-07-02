@@ -43,7 +43,7 @@ void drawLayout(screenLayout scr){
     u8g2.setFont(u8g2_font_tenfatguys_t_all); // fat font
     strLen = u8g2.getStrWidth(scr.title);
 
-    if(strLen>120) {
+    if(strLen>126) {
        // thin font
        u8g2.setFont(u8g2_font_tenthinnerguys_t_all);
        strLen = u8g2.getStrWidth(scr.title);
