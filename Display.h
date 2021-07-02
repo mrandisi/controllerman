@@ -9,13 +9,14 @@ U8G2_ST7920_128X64_1_HW_SPI u8g2(U8G2_R0, /* CS=*/ 10, /* reset=*/ 8);
 
 struct screenLayout {
   char title[20];
+  uint8_t ccNum;
   char fxLabel[6][4];
   char fxDescr[6][11];
   bool buttonState[6];
 } scr;
 
 
-void splash() {
+/*void splash() {
   u8g2.firstPage();
   do {
     
@@ -24,10 +25,10 @@ void splash() {
     u8g2.setFont(u8g2_font_tenfatguys_t_all);
     u8g2.drawStr(10,31,"CONTROLLER");
     u8g2.drawStr(60,43,"MAN");
-    //u8g2.setFont(u8g2_font_tenthinnerguys_t_all);
-    //u8g2.drawStr(45,58,"Stomp 6");
+    u8g2.setFont(u8g2_font_tenthinnerguys_t_all);
+    u8g2.drawStr(45,58,"Stomp 6");
   } while ( u8g2.nextPage() );
-}
+}*/
 
 
 void drawLayout(screenLayout scr){
@@ -42,16 +43,13 @@ void drawLayout(screenLayout scr){
     u8g2.setFont(u8g2_font_tenfatguys_t_all); // fat font
     strLen = u8g2.getStrWidth(scr.title);
 
-    if(strLen>100) {
+    if(strLen>120) {
        // thin font
        u8g2.setFont(u8g2_font_tenthinnerguys_t_all);
        strLen = u8g2.getStrWidth(scr.title);
     }
     
-    if(strLen>u8g2.getDisplayWidth())
-      xPos=0; // align left
-    else
-      xPos=(u8g2.getDisplayWidth()/2)-(strLen/2);  // center screen
+    xPos=(u8g2.getDisplayWidth()/2)-(strLen/2);  // center screen
     u8g2.drawStr(xPos, 30+(u8g2.getMaxCharHeight()/2), scr.title);
 
     // Short Labels
@@ -127,6 +125,15 @@ void drawLayout(screenLayout scr){
     //u8g2.drawFrame(0, 18, 128, 28);
     u8g2.drawLine(0, 18, 128, 18);
     u8g2.drawLine(0, 45, 128, 45);
+
+    if(scr.ccNum>0) {
+      char ccStr[5]; // "#127"
+      sprintf(ccStr, "#%d", scr.ccNum);
+      strLen = u8g2.getStrWidth(ccStr);
+      xPos=u8g2.getDisplayWidth()-strLen-1; // align right
+      u8g2.drawStr(xPos, 43, ccStr);
+    }
+    
   } while ( u8g2.nextPage() );
 }
 
@@ -152,47 +159,6 @@ void menu_nav_buttons(bool buttState[]) {
     if(buttState[2])
       u8g2.drawStr(118, 64, "U"); // back
 }
-
-/*uint8_t drawMenu(char title[], char * options[], uint8_t option_len, uint8_t sel, bool buttState[]){
-  uint8_t xPos;
-  uint8_t yPos;
-  uint8_t titleLen;
-  uint8_t strLen;
-  uint8_t maxW=0;
-  
-  u8g2.firstPage();
-  do {
-    u8g2.setFontDirection(0);
-    
-    // Navigation indicators
-    //u8g2.setFont(u8g2_font_twelvedings_t_all );
-
-    //bool buttState[6]={1,1,1,0,1,1};
-    menu_nav_buttons(buttState);
-
-    // Menu
-    u8g2.setFont(u8g2_font_trixel_square_tf);
-    uint8_t char_height=7;//u8g2.getMaxCharHeight();
-    u8g2.drawStr(1, 25, title);
-    titleLen = u8g2.getStrWidth(title)+4;
-    
-    for(uint8_t i=0; i<option_len; i++) {
-      yPos = 14+(char_height*(i));
-      strLen = u8g2.getStrWidth(options[i]);
-      //maxW = strLen > maxW ? strLen : maxW;
-      u8g2.drawStr(titleLen+2, yPos-1, options[i]);
-      
-      if((i)==sel) { // selected
-        u8g2.drawBox(titleLen+1, yPos-char_height, strLen+4, 7);
-      }
-    }
-    u8g2.drawLine(titleLen, char_height, titleLen, yPos-1);
-
-    //u8g2.drawFrame(21, char_height, maxW+18, 50);
-    
-  } while ( u8g2.nextPage() );
-  
-}*/
 
 void drawButtonEdit(uint8_t selectedIndex, char fx[17]) {
   char title[20];
@@ -298,43 +264,7 @@ void drawButtonEdit(uint8_t selectedIndex, char fx[17]) {
   } while ( u8g2.nextPage() );
 }
 
-uint8_t drawListChooser(char* title, uint8_t menu_id, uint8_t sel) {
-
-  uint8_t m_option_len = getPMStrSize(menu_id);
-  bool buttState[6]={1,1,1,0,1,0};
-
-  uint8_t xPos;
-  uint8_t yPos;
-  uint8_t titleLen;
-  uint8_t strLen;
-  uint8_t maxW=0;
-  
-  u8g2.firstPage();
-  do {
-    u8g2.setFontDirection(0);
-    
-    // Navigation indicators
-    menu_nav_buttons(buttState);
-
-    // Menu
-    u8g2.setFont(u8g2_font_trixel_square_tf);
-    u8g2.drawStr(1, 18, title);
-
-    u8g2.setFont(u8g2_font_tenthinnerguys_t_all);
-    char myString[20];
-    getPMString(menu_id, sel-1, myString);
-    strLen = u8g2.getStrWidth(myString);
-    xPos = 64-(strLen/2); // center h
-    yPos =  30+(u8g2.getMaxCharHeight()/2); // center v
-
-    u8g2.drawStr(xPos, yPos, myString);
-    u8g2.drawBox(xPos-1, yPos-u8g2.getMaxCharHeight(), strLen+2, u8g2.getMaxCharHeight()+2);
-    
-  } while ( u8g2.nextPage() );
-  
-}
-
-uint8_t drawListChooser2(char* title, uint8_t menu_id, uint8_t sel, uint8_t firstItem) {
+uint8_t drawListChooser(uint8_t property, uint8_t menu_id, uint8_t sel, uint8_t firstItemShift) {
 
   uint8_t m_option_len = getPMStrSize(menu_id);
   bool buttState[6]={1,1,1,0,1,0};
@@ -342,7 +272,13 @@ uint8_t drawListChooser2(char* title, uint8_t menu_id, uint8_t sel, uint8_t firs
   uint8_t yPos;
   uint8_t titleLen;
   uint8_t strLen;
-  uint8_t maxW=0;
+  char title[20];
+  getProperty(property, title);
+  
+  uint8_t menu_entries=7;
+  if(m_option_len<7) {
+    menu_entries = m_option_len;
+  }
   
   u8g2.firstPage();
   do {
@@ -356,14 +292,13 @@ uint8_t drawListChooser2(char* title, uint8_t menu_id, uint8_t sel, uint8_t firs
     u8g2.drawStr(1, 25, title);
     titleLen = u8g2.getStrWidth(title)+4;
     
-    for(uint8_t i=0; i<m_option_len; i++) {
+    for(uint8_t i=firstItemShift; i<firstItemShift+menu_entries; i++) {
 
       char myString[20];
-      getPMString(menu_id, i, myString);
+      getPMArrayVal(menu_id, i, myString);
       
-      yPos = 14+(char_height*(i));
+      yPos = 14+(char_height*(i-firstItemShift));
       strLen = u8g2.getStrWidth(myString);
-      //maxW = strLen > maxW ? strLen : maxW;
       u8g2.drawStr(titleLen+2, yPos-1, myString);
       
       if(i+1==sel) { // selected

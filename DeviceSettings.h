@@ -12,9 +12,9 @@ char LAYOUT_TITLE[16];
 uint8_t PATCH_STATE = 1; // PC: OFF / 1-128 -> path from 1 to 125
 bool BUTTON_STATES[24];
 
-int EEPROM_STATES_SHIFT=100;
-int EEPROM_FX_SHIFT=500;
-const int EEPROM_PATCH_DEFAULT_STATE=50;
+int EEPROM_STATES_SHIFT=120;
+int EEPROM_FX_SHIFT=520;
+const int EEPROM_PATCH_DEFAULT_STATE=40;
 const int EEPROM_OUTCHANNEL=51;
 
 namespace settings
@@ -22,7 +22,7 @@ namespace settings
   
 } // end namespace setings
 
-const char defFx_0[] PROGMEM = "AC AmpChannel";
+/*const char defFx_0[] PROGMEM = "AC AmpChannel";
 const char defFx_1[] PROGMEM = "CMPCompressor";
 const char defFx_2[] PROGMEM = "WAHPedal";
 const char defFx_3[] PROGMEM = "BSTBoost";
@@ -52,7 +52,7 @@ const char* const defFx[] PROGMEM = {
   defFx_10,defFx_11,defFx_12,defFx_13,defFx_14,
   defFx_15,defFx_16,defFx_17,defFx_18,defFx_19,
   defFx_20,defFx_21,defFx_22,defFx_23
-};
+};*/
 
 
 const char layoutName_0[] PROGMEM = "Red";
@@ -75,6 +75,13 @@ const char menu1_4[] PROGMEM = "Set out channel";
 const char menu1_5[] PROGMEM = "Reset device";
 const char* const menu1[] PROGMEM = {menu1_0, menu1_1, menu1_2, menu1_3, menu1_4, menu1_5};
 
+const char property_0[] PROGMEM = "Settings";
+const char property_1[] PROGMEM = "Choose 1st button";
+const char property_2[] PROGMEM = "Choose 2nd button";
+const char property_3[] PROGMEM = "Choose button";
+const char property_4[] PROGMEM = "Select boot patch";
+const char property_5[] PROGMEM = "Out channel";
+const char* const property[] PROGMEM = {property_0, property_1, property_2, property_3, property_4, property_5};
 
 byte boolArrayToByte(bool boolArray[8]) {
   byte bits;
@@ -153,8 +160,8 @@ void write_default_fx() {
   
   // Write
   for(uint8_t i=0; i<24; i++) {
-    strcpy_P(fxName, (char*)pgm_read_word(&( defFx[i] ))); // get the couple short+long_name
-    //fx[0]=i+1;  // consecutive cc numbers from 1 to 24
+    //strcpy_P(fxName, (char*)pgm_read_word(&( defFx[i] ))); // get the couple short+long_name
+    sprintf(fxName, "E%02dEffect%d", i+1, i+1);
 
     int charLocation = EEPROM_FX_SHIFT + (i * 16);  // +0 first location
     EEPROM.write(charLocation, 0);  // long press disabled
@@ -217,8 +224,8 @@ void writeFx(uint8_t virtualButton, char fx[17]) {   // button from 0 to 23
   
 }
 
-void setFxCCnum(uint8_t virtualButton, byte channel) {
-  EEPROM.write(EEPROM_FX_SHIFT + (virtualButton*16)+2, CHANNEL);
+void setFxCCnum(uint8_t virtualButton, byte ccnum) {
+  EEPROM.write(EEPROM_FX_SHIFT + (virtualButton*16)+2, ccnum);
 }
 
 void writeFxShortName(uint8_t virtualButton, char fx[]) { // button from 0 to 23
@@ -257,7 +264,27 @@ void write_outChannel(uint8_t channel) {
   EEPROM.write(EEPROM_OUTCHANNEL, channel);
 }
 
-void getPMString(uint8_t target, uint8_t index, char myString[20]) {
+// Reboot
+void(* reboot)(void) = 0;
+
+void reset_device() {
+    clear_eeprom();
+    EEPROM.write(0, 87);  // flag for firstRun (random number). So, if == 87 device is already formatted.
+    write_outChannel(8);
+    write_default_patch(1);
+    write_default_fx();
+    reboot();
+}
+
+bool isFirstRun() {
+  uint8_t code = EEPROM.read(0);
+  if(code == 87)
+    return false;
+   else
+    return true;
+}
+
+void getPMArrayVal(uint8_t target, uint8_t index, char myString[20]) {
   
   if(target == 1) {
     strcpy_P(myString, (char*)pgm_read_word(&( menu1[index] )));
@@ -275,8 +302,15 @@ void getPMString(uint8_t target, uint8_t index, char myString[20]) {
     sprintf(myString, "%03d", index+1);
   } else if(target == 5) {
     sprintf(myString, "%d", index+1);
+  } else if(target == 10) {
+    strcpy_P(myString, (char*)pgm_read_word(&( property[index] )));
   }
 }
+
+void getProperty(uint8_t index, char myString[20]) {
+  getPMArrayVal(/*target*/10, index, myString);
+}
+
 uint8_t getPMStrSize(uint8_t target) {
   
   if(target==1) {
@@ -290,6 +324,5 @@ uint8_t getPMStrSize(uint8_t target) {
   }
   return 0;
 }
-
 
 #endif /* DEVICE_SETTINGS_H */
