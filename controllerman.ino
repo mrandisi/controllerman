@@ -49,13 +49,12 @@ Bounce * DEBOUNCER = new Bounce[BUTTQTY];   // 6 debouncing objects
 void setup() {
 
   if(isFirstRun()) {
-    analogWrite(PIN_RGB_RED, 255);
-    delay(3000);
-    analogWrite(PIN_RGB_RED, 0);
     analogWrite(PIN_RGB_GREEN, 255);
-    delay(1000);
+    delay(3000);
     reset_device();
   }
+
+  Serial.begin(9600);
   
   //MIDI.begin();
   MIDI.begin(MIDI_CHANNEL_OMNI); // Initialize the Midi Library.
@@ -437,7 +436,6 @@ void scroll_next_layout() {
     CURRENT_LAYOUT=0;
   }
   loadLayout();
-  //UPDATE_SCREEN=true;
   setTemporaryTitle(LAYOUT_TITLE);
 }
 
@@ -448,14 +446,12 @@ void scroll_prev_layout() {
     CURRENT_LAYOUT=3;
   }
   loadLayout();
-  //UPDATE_SCREEN=true;
   setTemporaryTitle(LAYOUT_TITLE);
 }
 
 void reset_layout() {
   CURRENT_LAYOUT=0;
-  //loadLayout();
-  UPDATE_SCREEN=true;
+  loadLayout();
   setTemporaryTitle(LAYOUT_TITLE);
 }
 
