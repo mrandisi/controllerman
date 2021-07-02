@@ -81,7 +81,9 @@ const char property_2[] PROGMEM = "Choose 2nd button";
 const char property_3[] PROGMEM = "Choose button";
 const char property_4[] PROGMEM = "Select boot patch";
 const char property_5[] PROGMEM = "Out channel";
-const char* const property[] PROGMEM = {property_0, property_1, property_2, property_3, property_4, property_5};
+const char property_6[] PROGMEM = "Are you shure?";
+const char property_7[] PROGMEM = "Reset, wait...?";
+const char* const property[] PROGMEM = {property_0, property_1, property_2, property_3, property_4, property_5, property_6, property_7};
 
 byte boolArrayToByte(bool boolArray[8]) {
   byte bits;
@@ -161,7 +163,7 @@ void write_default_fx() {
   // Write
   for(uint8_t i=0; i<24; i++) {
     //strcpy_P(fxName, (char*)pgm_read_word(&( defFx[i] ))); // get the couple short+long_name
-    sprintf(fxName, "E%02dEffect%d", i+1, i+1);
+    sprintf(fxName, "E%02dEffect %d", i+1, i+1);
 
     int charLocation = EEPROM_FX_SHIFT + (i * 16);  // +0 first location
     EEPROM.write(charLocation, 0);  // long press disabled

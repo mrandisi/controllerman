@@ -245,6 +245,8 @@ void drawButtonEdit(uint8_t selectedIndex, char fx[17]) {
 
         if(fx[i] == '\0') {
           fx[i] = 32;
+        } else if(fx[i] < 31) {
+          fx[i]=32;
         } else if(fx[i] < 32) {
           fx[i]=126;
         } else if(fx[i] > 126) {
@@ -264,7 +266,7 @@ void drawButtonEdit(uint8_t selectedIndex, char fx[17]) {
   } while ( u8g2.nextPage() );
 }
 
-uint8_t drawListChooser(uint8_t property, uint8_t menu_id, uint8_t sel, uint8_t firstItemShift) {
+void drawListChooser(uint8_t property, uint8_t menu_id, uint8_t sel, uint8_t firstItemShift) {
 
   uint8_t m_option_len = getPMStrSize(menu_id);
   bool buttState[6]={1,1,1,0,1,0};
@@ -306,6 +308,27 @@ uint8_t drawListChooser(uint8_t property, uint8_t menu_id, uint8_t sel, uint8_t 
       }
     }
     u8g2.drawLine(titleLen, char_height, titleLen, yPos-1);
+    
+  } while ( u8g2.nextPage() );
+  
+}
+
+void drawConfirm(uint8_t property) {
+
+  char title[20];
+  getProperty(property, title);
+  bool buttState[6]={1,0,1,0,0,0};
+  
+  u8g2.firstPage();
+  do {
+    u8g2.setFontDirection(0);
+    
+    menu_nav_buttons(buttState);
+
+    u8g2.setFont(u8g2_font_tenthinnerguys_t_all);
+    uint8_t xPos=(u8g2.getDisplayWidth()/2)-(u8g2.getStrWidth(title)/2); // center x
+    uint8_t yPos = (u8g2.getDisplayHeight()/2)+(u8g2.getMaxCharHeight()/2); // center y
+    u8g2.drawStr(xPos, yPos, title);
     
   } while ( u8g2.nextPage() );
   

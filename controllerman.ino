@@ -656,8 +656,9 @@ uint8_t settings_menu() {
     if(editButton(virtual_button)) {
       setTemporaryTitle("Saved!");
       loadLayout();
+      return 0;
     }
-    return 0;
+    return 1;
 
   } else if(choice==4) { // Set boot patch
 
@@ -684,8 +685,14 @@ uint8_t settings_menu() {
       return 1;
       
   } else if(choice==6) { // Reset
-    setTemporaryTitle("Reset, wait...");
-    reset_device();
+    drawConfirm(6);
+    delay(2000);
+    int8_t butt_choice = checkButtons();  // waits for a choose
+    if(butt_choice == 1) {
+      //drawConfirm(7);
+      reset_device();
+    }
+    return 1;
   }
   return 1;
 }
@@ -768,7 +775,7 @@ bool editButton(uint8_t virtual_button) { // 1 to 24
 
   }
   
-  return 0;
+  return false;
 }
 
 uint8_t listChooser(uint8_t property, uint8_t menu_id, uint8_t defaultEntry) {
