@@ -624,7 +624,7 @@ uint8_t settings_menu() {
   if(choice==0) {
     return 0;
   } else if(choice==1) { // save button states
-    setTemporaryTitle("Save fx states");
+    setTemporaryTitle("Save patch states");
     write_default_states(PATCH_STATE);
     return 0;
 
@@ -650,7 +650,7 @@ uint8_t settings_menu() {
     if(!virtual_button) return 1;
 
     if(editButton(virtual_button)) {
-      setTemporaryTitle("Saved!");
+      setTemporaryTitle("Saving patch state");
       loadLayout();
       return 0;
     }
