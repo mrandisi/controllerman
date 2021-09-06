@@ -42,6 +42,7 @@ unsigned long LAZY_TIME=millis();
 uint8_t VERY_SLOW_COUNTER=0;
 
 bool UPDATE_SCREEN=false;
+bool IMPORT_PATCH=false;
 
 // Instantiate the Bounce objects
 Bounce * DEBOUNCER = new Bounce[BUTTQTY];   // 6 debouncing objects
@@ -53,37 +54,17 @@ void setup() {
     delay(3000);
     reset_device();
   }
-
-  Serial.begin(9600);
   
-  //MIDI.begin();
-  MIDI.begin(MIDI_CHANNEL_OMNI); // Initialize the Midi Library.
-  MIDI.setHandleControlChange(processCCmsg); // This command tells the MIDI Library
-  MIDI.setHandleProgramChange(processPCmsg); // This command tells the MIDI Library
-  /*setHandleNoteOff(void (*fptr)(byte channel, byte note, byte velocity));
-  setHandleNoteOn(void (*fptr)(byte channel, byte note, byte velocity));
-  setHandleAfterTouchPoly(void (*fptr)(byte channel, byte note, byte pressure));
-  setHandleControlChange(void (*fptr)(byte channel, byte number, byte value));
-  setHandleProgramChange(void (*fptr)(byte channel, byte number));
-  setHandleAfterTouchChannel(void (*fptr)(byte channel, byte pressure));
-  setHandlePitchBend(void (*fptr)(byte channel, int bend));
-  setHandleSystemExclusive(void (*fptr)(byte * array, unsigned size));
-  setHandleTimeCodeQuarterFrame(void (*fptr)(byte data));
-  setHandleSongPosition(void (*fptr)(unsigned beats));
-  setHandleSongSelect(void (*fptr)(byte songnumber));
-  setHandleTuneRequest(void (*fptr)(void));
-  setHandleClock(void (*fptr)(void));
-  setHandleStart(void (*fptr)(void));
-  setHandleContinue(void (*fptr)(void));
-  setHandleStop(void (*fptr)(void));
-  setHandleActiveSensing(void (*fptr)(void));
-  setHandleSystemReset(void (*fptr)(void));*/
-  
+  MIDI.begin();
+  //MIDI.begin(MIDI_CHANNEL_OMNI); // Initialize the Midi Library.
+  //MIDI.setHandleControlChange(processCCmsg); // This command tells the MIDI Library
+  //MIDI.setHandleProgramChange(processPCmsg); // This command tells the MIDI Library
   
   // Initialize the button pins
   for (int i = 0; i < BUTTQTY; i++) {
     pinMode(PIN_BUTTON[i] ,INPUT_PULLUP);
   }
+  //pinMode( 0, INPUT_PULLUP );
 
   // Initialize RGB led pins
   pinMode(PIN_RGB_RED, OUTPUT);
@@ -101,9 +82,7 @@ void setup() {
 
   // boot animation
   //splash();
-  //ledTest();
-  //delay(500);
-  ledBlink(/*ms_on*/3,/*ms_off*/0,/*repeat*/1);
+  ledBlink(/*ms_on*/3,/*ms_off*/0,/*repeat*/1, LAYOUT_COLOR[0]);
 
   PATCH_STATE = read_default_patch();
   sprintf (scr.title, "P%03d", PATCH_STATE);
@@ -119,7 +98,7 @@ void setup() {
 
 void loop() {
 
-  MIDI.read(); // Continuously check if Midi data has been received.
+  //MIDI.read(); // Continuously check if Midi data has been received.
   
   // Check all buttons
   for(uint8_t i=0; i<BUTTQTY; i++) {
@@ -142,6 +121,11 @@ void loop() {
     if(UPDATE_SCREEN) {
       loadLayout();
       UPDATE_SCREEN=false;
+    } else if(IMPORT_PATCH) {
+      sprintf (scr.title, "P%03d", PATCH_STATE);
+      load_default_states(PATCH_STATE);
+      loadLayout();
+      IMPORT_PATCH=false;
     }
 
       // opens the menu
@@ -171,23 +155,34 @@ void loop() {
 /**----------------------------------------------------------
  *          MIDI READ
  ----------------------------------------------------------*/
-void processPCmsg(byte channel, byte number, byte value) {
+/*void processPCmsg(byte channel, byte number, byte value) {
+  ledBlink(3,0,1, LAYOUT_COLOR[2]);
+  if(PATCH_STATE != number+1) {
+    if(number >=0 && number <125) {
+      PATCH_STATE=number+1;
+      LAZY_TIME=millis();
+      IMPORT_PATCH=true;
+    } else {
+      ledBlink(3,0,1, LAYOUT_COLOR[0]);
+    }
 
-  ledBlink(/*ms_on*/3,/*ms_off*/0,/*repeat*/1);
+    //ledBlink(/3,0,1, LAYOUT_COLOR[0]);
+  }
   
   //PATCH_STATE=number+1;
-  char buf[8];
-  sprintf (buf, "PC %d", number);
-  setTemporaryTitle(buf);
-}
-void processCCmsg(byte channel, byte number, byte value) {
+  //char buf[8];
+  //sprintf (buf, "PC %d", number);
+  //setTemporaryTitle(buf);
+}*/
 
-  ledBlink(/*ms_on*/3,/*ms_off*/0,/*repeat*/1);
+//void processCCmsg(byte channel, byte number, byte value) {
+
+//  ledBlink(/*ms_on*/3,/*ms_off*/0,/*repeat*/1,LAYOUT_COLOR[0]);
   
-  char buf[8];
+/*  char buf[8];
   sprintf (buf, "CC %d", number);
   setTemporaryTitle(buf);
-}
+}*/
 /**----------------------------------------------------------
  *          END MIDI READ 
  * ----------------------------------------------------------*/
@@ -208,15 +203,15 @@ void customDelay(int delayTime) {
   long int nowTime=startTime;
   while(nowTime-startTime < delayTime) {
 
-    updateRealtimeProcesses();
+    //updateRealtimeProcesses();
     
     nowTime = millis();
   }
 }
 
-void updateRealtimeProcesses() {
+/*void updateRealtimeProcesses() {
   MIDI.read(); // Continuously check if Midi data has been received.
-}
+}*/
 
 void manageAction(uint8_t i) {
   unsigned long press_time = millis();
@@ -251,12 +246,14 @@ void manageAction(uint8_t i) {
                 while(DEBOUNCER[i].read()==LOW || DEBOUNCER[nearButton-1].read()==LOW) {
                   DEBOUNCER[i].update();
                   DEBOUNCER[nearButton-1].update();
+//                  updateRealtimeProcesses();
                 }
               } // end if wait
               
             }
             DEBOUNCER[i].update();
             DEBOUNCER[nearButton-1].update();
+//            updateRealtimeProcesses();
           } // end while long press
           
           if((millis() - double_press_time) <= 1000) {  // avoid single action after long press
@@ -279,12 +276,14 @@ void manageAction(uint8_t i) {
         if(break_flag) {  // wait for button release
           while(DEBOUNCER[i].read()==LOW) {
             DEBOUNCER[i].update();
+//            updateRealtimeProcesses();
           }
         }
       }
     }
     
     DEBOUNCER[i].update();  // update the state of the pressed button
+//    updateRealtimeProcesses();
   }
   // primary button released (without double button combination)
   if((millis() - press_time) < 1000) {
@@ -304,9 +303,11 @@ void manageAction(uint8_t i) {
           // wait for release...
           while((DEBOUNCER[i].read()==LOW)) {
             DEBOUNCER[i].update();
+//            updateRealtimeProcesses();
           }
         }
-    }
+//        updateRealtimeProcesses();
+      }
     }
     if(!isDoubleClick) {
       singlePress(i+1);
@@ -354,13 +355,31 @@ void doublePress(uint8_t button1, uint8_t button2) {
   } else if(button1==2 && button2==5) {
     reset_layout();
   } else if(button1==5 && button2==6) {  // combination reserved to patch up/down
-    patchUp();
+    //patchUp();
+    PATCH_STATE++;
+    setPatch();
   } else if(button1==2 && button2==3) {
-    patchDown();
-  } else if(button1==4 && button2==5) {  // jump patch up/down
-    jumpPatchUp();
+    //patchDown();
+    PATCH_STATE--;
+    setPatch();
+  } else if(button1==4 && button2==5) {  // volume up/down
+    
+    VOLUME=(VOLUME<90)?VOLUME+=10:100;
+
+    char volTitle[8];
+    sprintf (volTitle, "Vol %d%", VOLUME);
+    setTemporaryTitle(volTitle);
+
+    syncDevice();
   } else if(button1==1 && button2==2) {
-    jumpPatchDown();
+    
+    VOLUME=(VOLUME>=10)?VOLUME-=10:0;
+    
+    char volTitle[8];
+    sprintf (volTitle, "Vol %d%", VOLUME);
+    setTemporaryTitle(volTitle);
+
+    syncDevice();
   }
   
 }
@@ -377,21 +396,30 @@ bool doublePress_hold(uint8_t button1, uint8_t button2) {
     EDIT_MODE=true;
     return true;
   } else if(button1==5 && button2==6) {  // combination reserved to patch up/down
-    patchUp();
+    //patchUp();
+    PATCH_STATE++;
+    setPatch();
     delay(50);
     return false;
   } else if(button1==2 && button2==3) {
-    patchDown();
+    //patchDown();
+    PATCH_STATE--;
+    setPatch();
     delay(50);
     return false;
   } else if(button1==4 && button2==5) {  // reserved to jump patch up/down
-    jumpPatchUp();
+    //jumpPatchUp();
+    /*PATCH_STATE+=10;
+    setPatch();
     delay(50);
-    return false;
+    return false;*/
   } else if(button1==1 && button2==2) {
-    jumpPatchDown();
+    //jumpPatchDown();
+    /*PATCH_STATE=(PATCH_STATE==1)?125:((PATCH_STATE<12)?1:PATCH_STATE-=10);
+    
+    setPatch();
     delay(50);
-    return false;
+    return false;*/
   }
   
   return true;//break_flag, true waits for button release;
@@ -458,10 +486,8 @@ void reset_layout() {
 void loadLayout() {
   setRgbColor(LAYOUT_COLOR[CURRENT_LAYOUT]);
   
-  char lName[14];
-  strcpy_P(lName, (char*)pgm_read_word(&( layoutName[CURRENT_LAYOUT] )));
-  strcat(lName, " layout");
-  strcpy(LAYOUT_TITLE, lName);
+  strcpy_P(LAYOUT_TITLE, (char*)pgm_read_word(&( layoutName[CURRENT_LAYOUT] )));
+  strcat(LAYOUT_TITLE, " layout");
   
   // load button states from current layout 
   uint8_t shift = 6 * CURRENT_LAYOUT;  // 6*0=0; 6*1=6; 6*2=12...
@@ -481,55 +507,12 @@ void loadFxNames() {
   }
 }
 
-void patchUp(){
-  if(PATCH_STATE < 125) { // 125 is the last patch, 126 and 127 are not used.
-    PATCH_STATE++;
-  } else {
-    PATCH_STATE=1;  // loops to the first patch
+void setPatch(){
+  if(PATCH_STATE > 125) { // 125 is the last patch, 126 and 127 are not used.
+    PATCH_STATE=1;
+  } else if(PATCH_STATE < 1) {
+    PATCH_STATE=125;  // loops to the first patch
   }
-  sprintf (scr.title, "P%03d", PATCH_STATE);
-  load_default_states(PATCH_STATE);
-  loadLayout();
-  //UPDATE_SCREEN=true;
-  syncDevice();
-}
-
-void patchDown() {
-  if(PATCH_STATE > 1) {
-    PATCH_STATE--;
-  } else {
-    PATCH_STATE=125;  // loops to the last patch
-  }
-  sprintf (scr.title, "P%03d", PATCH_STATE);
-  load_default_states(PATCH_STATE);
-  loadLayout();
-  //UPDATE_SCREEN=true;
-  syncDevice();
-}
-
-void jumpPatchUp(){
-  if(PATCH_STATE > 120) { // 125 is the last patch, 126 and 127 are not used.
-    PATCH_STATE-=120;  // loops to the first patch
-  } else {
-    PATCH_STATE+=10;
-    if(PATCH_STATE>125)
-      PATCH_STATE-=120;
-  }
-  sprintf (scr.title, "P%03d", PATCH_STATE);
-  load_default_states(PATCH_STATE);
-  loadLayout();
-  //UPDATE_SCREEN=true;
-  syncDevice();
-}
-
-void jumpPatchDown() {
-  if(PATCH_STATE >= 11) {
-    PATCH_STATE-=10;
-  } else {
-    PATCH_STATE+=120;  // loops to the last patch
-  }
-  if(PATCH_STATE>125)
-    PATCH_STATE-=10;
   sprintf (scr.title, "P%03d", PATCH_STATE);
   load_default_states(PATCH_STATE);
   loadLayout();
@@ -540,6 +523,7 @@ void jumpPatchDown() {
 void syncDevice() {
   // send the patch number
   MIDI.sendProgramChange (PATCH_STATE-1, CHANNEL); // counts from 0 that stands for the patch 1
+  MIDI.sendControlChange(95, VOLUME, CHANNEL);
   delay(8);
   for(uint8_t i=0; i<24; i++) {
       if(BUTTON_STATES[i]==false) {
@@ -567,11 +551,11 @@ void setTemporaryTitle(char * tmpTitle) {
   UPDATE_SCREEN=true;
 }
 
-void ledBlink(uint8_t ms_on, uint8_t ms_off, uint8_t repeat) {
+void ledBlink(uint8_t ms_on, uint8_t ms_off, uint8_t repeat, uint8_t * color) {
   for(uint8_t i=0; i<repeat; i++) {
-    analogWrite(PIN_RGB_RED, 255);
-    analogWrite(PIN_RGB_GREEN, 255);
-    analogWrite(PIN_RGB_BLUE, 255);
+    analogWrite(PIN_RGB_RED, color[0]);
+    analogWrite(PIN_RGB_GREEN, color[1]);
+    analogWrite(PIN_RGB_BLUE, color[2]);
     delay(ms_on);
     setRgbColor(LAYOUT_COLOR[CURRENT_LAYOUT]);
     delay(ms_off);
@@ -624,7 +608,7 @@ uint8_t settings_menu() {
   if(choice==0) {
     return 0;
   } else if(choice==1) { // save button states
-    setTemporaryTitle("Save patch states");
+    setTemporaryTitle("Saved patch states");
     write_default_states(PATCH_STATE);
     return 0;
 
