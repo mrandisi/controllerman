@@ -1,6 +1,5 @@
 /**
  * ControllerMan
- * www.controllerman.com
  * 
  */
 #include <Bounce2.h>      // buttons anti bounce
@@ -362,24 +361,14 @@ void doublePress(uint8_t button1, uint8_t button2) {
     //patchDown();
     PATCH_STATE--;
     setPatch();
-  } else if(button1==4 && button2==5) {  // volume up/down
-    
-    VOLUME=(VOLUME<90)?VOLUME+=10:100;
-
-    char volTitle[8];
-    sprintf (volTitle, "Vol %d%", VOLUME);
-    setTemporaryTitle(volTitle);
-
-    syncDevice();
+  } else if(button1==4 && button2==5) {  // jump patch up/down
+    //jumpPatchUp();
+    PATCH_STATE+=10;
+    setPatch();
   } else if(button1==1 && button2==2) {
-    
-    VOLUME=(VOLUME>=10)?VOLUME-=10:0;
-    
-    char volTitle[8];
-    sprintf (volTitle, "Vol %d%", VOLUME);
-    setTemporaryTitle(volTitle);
-
-    syncDevice();
+    //jumpPatchDown();
+    PATCH_STATE=(PATCH_STATE==1)?125:((PATCH_STATE<12)?1:PATCH_STATE-=10);
+    setPatch();
   }
   
 }
@@ -409,17 +398,17 @@ bool doublePress_hold(uint8_t button1, uint8_t button2) {
     return false;
   } else if(button1==4 && button2==5) {  // reserved to jump patch up/down
     //jumpPatchUp();
-    /*PATCH_STATE+=10;
+    PATCH_STATE+=10;
     setPatch();
     delay(50);
-    return false;*/
+    return false;
   } else if(button1==1 && button2==2) {
     //jumpPatchDown();
-    /*PATCH_STATE=(PATCH_STATE==1)?125:((PATCH_STATE<12)?1:PATCH_STATE-=10);
+    PATCH_STATE=(PATCH_STATE==1)?125:((PATCH_STATE<12)?1:PATCH_STATE-=10);
     
     setPatch();
     delay(50);
-    return false;*/
+    return false;
   }
   
   return true;//break_flag, true waits for button release;
@@ -523,7 +512,6 @@ void setPatch(){
 void syncDevice() {
   // send the patch number
   MIDI.sendProgramChange (PATCH_STATE-1, CHANNEL); // counts from 0 that stands for the patch 1
-  MIDI.sendControlChange(95, VOLUME, CHANNEL);
   delay(8);
   for(uint8_t i=0; i<24; i++) {
       if(BUTTON_STATES[i]==false) {
