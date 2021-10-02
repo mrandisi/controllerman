@@ -9,7 +9,6 @@ uint8_t CHANNEL = 8; // channel: OFF / 1-16
 
 uint8_t CURRENT_LAYOUT = 0;
 char LAYOUT_TITLE[16];
-uint8_t VOLUME = 80; // PC: OFF / 1-128 -> path from 1 to 125
 uint8_t PATCH_STATE = 1; // PC: OFF / 1-128 -> path from 1 to 125
 bool BUTTON_STATES[24];
 
